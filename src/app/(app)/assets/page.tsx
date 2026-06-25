@@ -132,8 +132,8 @@ function GuidesView() {
             className={cn(
               "flex w-full flex-col gap-0.5 rounded-lg border px-3.5 py-3 text-left transition-colors cursor-pointer",
               active.id === g.id
-                ? "border-clay/40 bg-clay-soft/30"
-                : "border-transparent hover:bg-accent/60",
+                ? "border-accent/40 bg-accent-soft/30"
+                : "border-transparent hover:bg-elevated/60",
             )}
           >
             <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function AssetsPage() {
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[220px]">
-              <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-clay" />
+              <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -292,7 +292,7 @@ export default function AssetsPage() {
 
           {query.trim() && (
             <p className="text-xs text-ink-faint">
-              <Sparkles className="mr-1 inline size-3 text-clay" />
+              <Sparkles className="mr-1 inline size-3 text-accent" />
               Showing {filtered.length} AI-ranked results for “{query}”
             </p>
           )}
@@ -342,7 +342,7 @@ export default function AssetsPage() {
                 <button
                   key={a.id}
                   onClick={() => openAsset(a)}
-                  className="grid w-full grid-cols-[1fr_120px_120px_100px] items-center gap-4 border-b px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-accent/40 cursor-pointer"
+                  className="grid w-full grid-cols-[1fr_120px_120px_100px] items-center gap-4 border-b px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
                 >
                   <span className="flex items-center gap-3">
                     <span className="size-8 shrink-0 overflow-hidden rounded-md border">

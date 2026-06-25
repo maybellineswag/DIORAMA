@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const COLUMN_ACCENT: Record<TaskStatus, string> = {
   "New Request": "bg-ink-faint",
   "In Progress": "bg-info",
-  "In Review": "bg-clay",
+  "In Review": "bg-accent",
   "In Progress After Revision": "bg-warn",
   Done: "bg-good",
   "On Hold": "bg-danger",
@@ -110,7 +110,7 @@ export default function TasksPage() {
                 onDrop={() => drop(status)}
                 className={cn(
                   "flex h-full w-[280px] shrink-0 flex-col rounded-xl border bg-surface-2/40 transition-colors",
-                  dragOver === status && "border-clay/60 bg-clay-soft/30",
+                  dragOver === status && "border-accent/60 bg-accent-soft/30",
                 )}
               >
                 <div className="flex items-center justify-between px-3.5 py-3">

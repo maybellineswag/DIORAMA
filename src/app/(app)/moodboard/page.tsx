@@ -89,7 +89,7 @@ export default function MoodboardPage() {
 
       {/* Semantic search */}
       <div className="relative">
-        <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-clay" />
+        <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -107,8 +107,8 @@ export default function MoodboardPage() {
             className={cn(
               "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
               active === c
-                ? "border-clay/40 bg-clay-soft text-clay-ink"
-                : "border-border text-ink-soft hover:bg-accent/60 hover:text-foreground",
+                ? "border-accent/40 bg-accent-soft text-accent-ink"
+                : "border-border text-ink-soft hover:bg-elevated/60 hover:text-foreground",
             )}
           >
             {c}
@@ -139,7 +139,7 @@ export default function MoodboardPage() {
         className={cn(
           "flex items-center justify-center gap-3 rounded-xl border border-dashed py-5 text-sm transition-colors",
           dragHover
-            ? "border-clay/60 bg-clay-soft/30 text-clay-ink"
+            ? "border-accent/60 bg-accent-soft/30 text-accent-ink"
             : "text-ink-faint",
         )}
       >
@@ -153,7 +153,7 @@ export default function MoodboardPage() {
               description: "File picker is simulated in this prototype.",
             })
           }
-          className="inline-flex items-center gap-1 text-clay-ink hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1 text-accent-ink hover:underline cursor-pointer"
         >
           <Upload className="size-3.5" /> browse
         </button>
@@ -161,7 +161,7 @@ export default function MoodboardPage() {
 
       {query.trim() && (
         <p className="text-xs text-ink-faint">
-          <Sparkles className="mr-1 inline size-3 text-clay" />
+          <Sparkles className="mr-1 inline size-3 text-accent" />
           {images.length} matches ranked by visual similarity for “{query}”
         </p>
       )}
@@ -183,7 +183,7 @@ export default function MoodboardPage() {
               <Thumb seed={im.seed} />
               <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-1 bg-black/55 p-2 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
                 {im.tags.map((t) => (
-                  <Badge key={t} variant="clay" className="bg-clay-soft/90">
+                  <Badge key={t} variant="accent" className="bg-accent-soft/90">
                     {t}
                   </Badge>
                 ))}

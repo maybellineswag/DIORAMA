@@ -47,7 +47,7 @@ export default function LoginPage() {
             <Label htmlFor="password">Password</Label>
             <button
               type="button"
-              className="text-xs text-clay-ink hover:underline"
+              className="text-xs text-accent-ink hover:underline"
             >
               Forgot?
             </button>
@@ -78,7 +78,7 @@ export default function LoginPage() {
 
       <p className="mt-8 text-center text-sm text-ink-soft">
         New to Diorama?{" "}
-        <Link href="/register" className="text-clay-ink hover:underline">
+        <Link href="/register" className="text-accent-ink hover:underline">
           Create an account
         </Link>
       </p>

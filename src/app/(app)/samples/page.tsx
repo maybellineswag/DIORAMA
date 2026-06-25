@@ -25,14 +25,14 @@ const TRACK_FILTERS: ("All" | Track)[] = [
 
 const TRACK_ACCENT: Record<Track, string> = {
   Development: "bg-info",
-  "Sample Rounds": "bg-clay",
+  "Sample Rounds": "bg-accent",
   Production: "bg-good",
   "Dead ends": "bg-warn",
 };
 
 const TONE_TEXT: Record<string, string> = {
   default: "text-ink-soft",
-  clay: "text-clay-ink",
+  accent: "text-accent-ink",
   good: "text-good",
   danger: "text-danger",
   warn: "text-warn",
@@ -172,7 +172,7 @@ export default function SamplesPage() {
                       onDrop={() => drop(status)}
                       className={cn(
                         "flex h-full w-[248px] shrink-0 flex-col rounded-xl border bg-surface-2/40 transition-colors",
-                        dragOver === status && "border-clay/60 bg-clay-soft/30",
+                        dragOver === status && "border-accent/60 bg-accent-soft/30",
                       )}
                     >
                       <div className="flex items-center justify-between px-3 py-2.5">

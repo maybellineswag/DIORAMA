@@ -40,11 +40,11 @@ export function MemberAvatar({
 
 const PRIORITY_VARIANT: Record<
   Priority,
-  "danger" | "warn" | "clay" | "default"
+  "danger" | "warn" | "accent" | "default"
 > = {
   Urgent: "danger",
   High: "warn",
-  Medium: "clay",
+  Medium: "accent",
   Low: "default",
 };
 
@@ -56,7 +56,7 @@ export function PriorityDot({ priority }: { priority: Priority }) {
   const color: Record<Priority, string> = {
     Urgent: "bg-danger",
     High: "bg-warn",
-    Medium: "bg-clay",
+    Medium: "bg-accent",
     Low: "bg-ink-faint",
   };
   return <span className={cn("size-1.5 rounded-full", color[priority])} />;

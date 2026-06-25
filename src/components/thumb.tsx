@@ -25,7 +25,7 @@ function mulberry32(seed: number) {
   };
 }
 
-// Muted, warm studio palette — clays, mosses, bones, slate.
+// Muted, warm studio palette — accents, mosses, bones, slate.
 const PALETTES = [
   ["#b56c47", "#7c4a30", "#e8d9c5"],
   ["#6b7a55", "#3f4a33", "#dfe2cf"],

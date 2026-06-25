@@ -89,7 +89,7 @@ function Distribution({ stats }: { stats: SorterApi["stats"] }) {
               className="h-full rounded-full"
               style={{
                 width: `${(count / max) * 100}%`,
-                background: "var(--clay)",
+                background: "var(--accent)",
               }}
             />
           </div>
@@ -173,7 +173,7 @@ export function DailyLimitScreen({ s }: { s: SorterApi }) {
     <Shell>
       <div
         className="flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ background: "var(--clay-soft)", color: "var(--clay)" }}
+        style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
       >
         <Clock4 size={22} strokeWidth={1.75} />
       </div>

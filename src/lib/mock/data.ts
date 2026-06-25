@@ -90,7 +90,7 @@ export const ALL_STATUSES: SampleStatus[] = TRACKS.flatMap((t) => t.statuses);
 
 export const STATUS_TONE: Record<
   SampleStatus,
-  "default" | "clay" | "good" | "danger" | "warn" | "info"
+  "default" | "accent" | "good" | "danger" | "warn" | "info"
 > = {
   Concept: "default",
   Mockup: "default",
@@ -98,9 +98,9 @@ export const STATUS_TONE: Record<
   "Techpack In Review": "info",
   "Ready for Quote": "default",
   "Quote Received": "default",
-  "Ready for Sampling": "clay",
-  "Sample Sent": "clay",
-  "Sample In Review": "clay",
+  "Ready for Sampling": "info",
+  "Sample Sent": "info",
+  "Sample In Review": "info",
   "Revision Requested": "warn",
   "Bulk Order Placed": "info",
   "In Production": "info",

@@ -239,7 +239,7 @@ export function ProductDetail({ product }: { product: Product }) {
             <ol className="space-y-4">
               {product.activity.map((a) => (
                 <li key={a.id} className="flex gap-3">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-clay" />
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                   <div>
                     <p className="text-sm leading-snug">
                       <span className="font-medium">{a.who}</span>{" "}

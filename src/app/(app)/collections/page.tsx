@@ -210,7 +210,7 @@ export default function CollectionsPage() {
                     <button
                       key={p.id}
                       onClick={() => addProduct(p.id)}
-                      className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-accent cursor-pointer"
+                      className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-elevated cursor-pointer"
                     >
                       <span className="size-8 shrink-0 overflow-hidden rounded-md border">
                         <Thumb seed={p.seed} />
@@ -370,8 +370,8 @@ export default function CollectionsPage() {
       {/* AI builder */}
       <aside className="hidden w-80 shrink-0 flex-col border-l bg-surface-2/30 xl:flex">
         <div className="flex items-center gap-2 border-b px-5 py-4">
-          <span className="flex size-8 items-center justify-center rounded-md bg-clay-soft">
-            <Sparkles className="size-4 text-clay-ink" />
+          <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft">
+            <Sparkles className="size-4 text-accent-ink" />
           </span>
           <div>
             <p className="text-sm font-medium leading-tight">AI Collection Builder</p>
@@ -415,7 +415,7 @@ export default function CollectionsPage() {
                   Suggested mix
                 </p>
                 <button
-                  className="text-xs text-clay-ink hover:underline cursor-pointer"
+                  className="text-xs text-accent-ink hover:underline cursor-pointer"
                   onClick={() => {
                     suggestion.picks.forEach((p, i) => {
                       const pid = p.productId;
@@ -448,7 +448,7 @@ export default function CollectionsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-sm font-medium">{p.name}</p>
-                          <Badge variant="clay">{p.role}</Badge>
+                          <Badge variant="accent">{p.role}</Badge>
                         </div>
                         <p className="mt-1 text-xs leading-relaxed text-ink-soft">
                           {p.rationale}
@@ -456,7 +456,7 @@ export default function CollectionsPage() {
                         {p.productId && (
                           <button
                             onClick={() => addProduct(p.productId!)}
-                            className="mt-2 inline-flex items-center gap-1 text-xs text-clay-ink hover:underline cursor-pointer"
+                            className="mt-2 inline-flex items-center gap-1 text-xs text-accent-ink hover:underline cursor-pointer"
                           >
                             <Plus className="size-3" /> Add to canvas
                           </button>

@@ -3,35 +3,42 @@
 
 /* ─────────────────────────────────────────────────────────────
    DIORAMA — operating system for fashion brands
-   Premium dark mode. Warm neutral base (not pure black),
-   one muted clay accent. Linear/Notion/Figma restraint:
-   tight spacing, hairline borders, no decorative chrome.
-   Tokens drive both shadcn/ui and the embedded AI sorter.
+   Fully neutral base + one swappable accent (--accent).
+   Surfaces are pure grays; every interactive element (buttons,
+   active states, highlights, primary badges) uses --accent.
+   Semantic status colors (info/good/warn/danger) are functional
+   and intentionally left untouched.
    ───────────────────────────────────────────────────────────── */
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Accent (theme-independent, swappable at runtime) ───────── */
+:root {
+  --accent: #3b82f6; /* clean blue by default — overridden by the picker */
+  --accent-foreground: #ffffff; /* text on a solid accent fill */
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--foreground));
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-ink: var(--accent); /* accent used as text/icon color */
+}
+
 /* ── DARK (default) ─────────────────────────────────────────── */
 :root,
 .dark {
-  /* Brand surfaces — warm charcoal stack */
-  --paper: #0e0d0c; /* app canvas */
-  --surface: #1a1714; /* cards / panels */
-  --surface-hi: #221e1a; /* elevated (modals, popovers, hovers) */
-  --surface-2: #14120f; /* sunken (kanban lanes, wells) */
+  /* Neutral surfaces */
+  --paper: #0f0f0f; /* app background */
+  --surface: #1a1a1a; /* cards / panels */
+  --surface-hi: #242424; /* elevated: popovers, modals */
+  --surface-2: #151515; /* sunken: inputs, wells, kanban lanes */
+  --elevated: #242424; /* neutral hover surface */
 
-  --ink: #f3efe8; /* primary text */
-  --ink-soft: #a7a097; /* secondary text */
-  --ink-faint: #6d665d; /* tertiary / placeholders */
+  --ink: #ffffff; /* primary text */
+  --ink-soft: #888888; /* secondary text */
+  --ink-faint: #5c5c5c; /* tertiary / placeholders */
 
-  --line: #2b2723; /* hairline borders */
-  --line-soft: #211d19; /* subtle dividers */
+  --line: #2a2a2a; /* borders */
+  --line-soft: #202020; /* subtle dividers */
 
-  --clay: #cd8662; /* muted clay accent */
-  --clay-hover: #d9966f;
-  --clay-soft: #2d2018; /* tinted fills on dark */
-  --clay-ink: #e6ac84; /* accent text on dark */
-
+  /* Semantic status colors — UNCHANGED (functional) */
   --danger: #d97066;
   --danger-soft: #2e1916;
   --good: #94aa78;
@@ -41,48 +48,42 @@
   --info: #7fa0c4;
   --info-soft: #161f2a;
 
-  /* shadcn semantic tokens (mapped to brand surfaces) */
+  /* shadcn semantic tokens */
   --background: var(--paper);
   --foreground: var(--ink);
   --card: var(--surface);
   --card-foreground: var(--ink);
   --popover: var(--surface-hi);
   --popover-foreground: var(--ink);
-  --primary: var(--clay);
-  --primary-foreground: #1a120c;
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
   --secondary: var(--surface-hi);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-hi);
   --muted-foreground: var(--ink-soft);
-  --accent: #2a2521;
-  --accent-foreground: var(--ink);
   --destructive: var(--danger);
-  --destructive-foreground: #1a120c;
+  --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
-  --ring: var(--clay);
+  --ring: var(--accent);
 
   --radius: 0.75rem;
 }
 
 /* ── LIGHT (toggle in Settings) ─────────────────────────────── */
 .light {
-  --paper: #f5f3ee;
-  --surface: #fffdf9;
+  --paper: #ffffff;
+  --surface: #f5f5f5;
   --surface-hi: #ffffff;
-  --surface-2: #ece9e2;
+  --surface-2: #ededed;
+  --elevated: #f0f0f0;
 
-  --ink: #221f1c;
-  --ink-soft: #6c655c;
-  --ink-faint: #a39c92;
+  --ink: #0f0f0f;
+  --ink-soft: #6b6b6b;
+  --ink-faint: #9a9a9a;
 
-  --line: #e5e0d6;
-  --line-soft: #efebe2;
-
-  --clay: #b5613c;
-  --clay-hover: #9f5333;
-  --clay-soft: #f0e2d8;
-  --clay-ink: #7d4226;
+  --line: #e5e5e5;
+  --line-soft: #eeeeee;
 
   --danger: #b0493d;
   --danger-soft: #f3ddd9;
@@ -93,25 +94,7 @@
   --info: #466585;
   --info-soft: #e2ebf3;
 
-  --background: var(--paper);
-  --foreground: var(--ink);
-  --card: var(--surface);
-  --card-foreground: var(--ink);
-  --popover: var(--surface-hi);
-  --popover-foreground: var(--ink);
-  --primary: var(--clay);
-  --primary-foreground: #ffffff;
-  --secondary: var(--surface-hi);
-  --secondary-foreground: var(--ink);
-  --muted: var(--surface-2);
-  --muted-foreground: var(--ink-soft);
-  --accent: #ece8e0;
-  --accent-foreground: var(--ink);
-  --destructive: var(--danger);
   --destructive-foreground: #ffffff;
-  --border: var(--line);
-  --input: var(--line);
-  --ring: var(--clay);
 }
 
 /* ── Tailwind token mapping ─────────────────────────────────── */
@@ -129,28 +112,32 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* brand utilities used by the app + embedded sorter */
+  /* accent (the one swappable brand color) */
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-hover: var(--accent-hover);
+
+  /* neutral brand surfaces */
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-surface-hi: var(--surface-hi);
   --color-surface-2: var(--surface-2);
+  --color-elevated: var(--elevated);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
-  --color-clay: var(--clay);
-  --color-clay-hover: var(--clay-hover);
-  --color-clay-soft: var(--clay-soft);
-  --color-clay-ink: var(--clay-ink);
+
+  /* semantic status — functional, unchanged */
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-good: var(--good);
@@ -192,8 +179,8 @@ body {
 }
 
 ::selection {
-  background: var(--clay-soft);
-  color: var(--clay-ink);
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--foreground);
 }
 
 /* Quiet, refined scrollbars */
@@ -227,34 +214,34 @@ body {
     font-feature-settings: "tnum";
   }
 
-  /* Sorter-era primitives, restyled via tokens to match Diorama */
+  /* Sorter-era primitives, driven by the same tokens */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)]
       px-4 py-2 text-sm font-medium transition-all duration-150 select-none outline-none;
   }
   .btn:focus-visible {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 35%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
   }
   .btn-primary {
     background: var(--ink);
     color: var(--paper);
   }
   .btn-primary:hover {
-    background: color-mix(in srgb, var(--ink) 88%, var(--clay));
+    background: color-mix(in srgb, var(--ink) 88%, var(--paper));
   }
   .btn-accent {
-    background: var(--clay);
-    color: var(--primary-foreground);
+    background: var(--accent);
+    color: var(--accent-foreground);
   }
   .btn-accent:hover {
-    background: var(--clay-hover);
+    background: var(--accent-hover);
   }
   .btn-ghost {
     color: var(--ink-soft);
     background: transparent;
   }
   .btn-ghost:hover {
-    background: var(--accent);
+    background: var(--elevated);
     color: var(--ink);
   }
   .btn-outline {
@@ -287,10 +274,7 @@ body {
 
   /* dotted canvas backdrop for the planning board */
   .canvas-grid {
-    background-image: radial-gradient(
-      var(--line) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
     background-size: 22px 22px;
   }
 }

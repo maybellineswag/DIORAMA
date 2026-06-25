@@ -30,7 +30,7 @@ const money = (n: number) =>
 
 const TONE: Record<string, { dot: string; bar: string }> = {
   info: { dot: "bg-info", bar: "bg-info" },
-  clay: { dot: "bg-clay", bar: "bg-clay" },
+  accent: { dot: "bg-accent", bar: "bg-accent" },
   good: { dot: "bg-good", bar: "bg-good" },
   warn: { dot: "bg-warn", bar: "bg-warn" },
 };
@@ -41,7 +41,7 @@ export default function DashboardPage() {
 
   const statusCards = [
     { label: "In development", value: tracks.Development, tone: "info" as const },
-    { label: "In sampling", value: tracks["Sample Rounds"], tone: "clay" as const },
+    { label: "In sampling", value: tracks["Sample Rounds"], tone: "accent" as const },
     { label: "In production", value: tracks.Production, tone: "good" as const },
     { label: "On hold / dropped", value: tracks["Dead ends"], tone: "warn" as const },
   ];
@@ -205,7 +205,7 @@ export default function DashboardPage() {
             <div className="space-y-3 p-5">
               {RECENT_ACTIVITY.map((a) => (
                 <div key={a.id} className="flex gap-3">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-clay" />
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                   <div>
                     <p className="text-sm leading-snug">
                       <span className="font-medium">{a.who}</span>{" "}
@@ -232,8 +232,8 @@ export default function DashboardPage() {
               <Link key={n.href} href={n.href}>
                 <Card className="group p-4 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi">
                   <div className="flex items-center justify-between">
-                    <span className="flex size-9 items-center justify-center rounded-md bg-surface-2 group-hover:bg-clay-soft">
-                      <Icon className="size-4 text-ink-soft group-hover:text-clay-ink" />
+                    <span className="flex size-9 items-center justify-center rounded-md bg-surface-2 group-hover:bg-accent-soft">
+                      <Icon className="size-4 text-ink-soft group-hover:text-accent-ink" />
                     </span>
                     <ArrowRight className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>

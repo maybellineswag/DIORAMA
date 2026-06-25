@@ -52,14 +52,14 @@ export function Sidebar() {
               className={cn(
                 "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "bg-accent text-foreground"
-                  : "text-ink-soft hover:bg-accent/60 hover:text-foreground",
+                  ? "bg-elevated text-foreground"
+                  : "text-ink-soft hover:bg-elevated/60 hover:text-foreground",
               )}
             >
               <Icon
                 className={cn(
                   "size-4 shrink-0 transition-colors",
-                  active ? "text-clay" : "text-ink-faint group-hover:text-ink-soft",
+                  active ? "text-accent" : "text-ink-faint group-hover:text-ink-soft",
                 )}
               />
               {item.label}
@@ -74,8 +74,8 @@ export function Sidebar() {
           className={cn(
             "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
             pathname.startsWith(SETTINGS_ITEM.href)
-              ? "bg-accent text-foreground"
-              : "text-ink-soft hover:bg-accent/60 hover:text-foreground",
+              ? "bg-elevated text-foreground"
+              : "text-ink-soft hover:bg-elevated/60 hover:text-foreground",
           )}
         >
           <SettingsIcon className="size-4 shrink-0 text-ink-faint group-hover:text-ink-soft" />
@@ -84,7 +84,7 @@ export function Sidebar() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/60 cursor-pointer">
+            <button className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-elevated/60 cursor-pointer">
               <Avatar className="size-7">
                 <AvatarFallback className="text-[11px]">
                   {initials(me.name)}

@@ -27,7 +27,7 @@ function formatClock(totalSeconds: number) {
 function confidenceBand(c: number) {
   if (c >= 0.85) return { label: "High", color: "var(--color-good)", soft: "var(--color-good-soft)" };
   if (c < 0.5) return { label: "Low", color: "var(--color-danger)", soft: "var(--color-danger-soft)" };
-  return { label: "Medium", color: "var(--clay)", soft: "var(--clay-soft)" };
+  return { label: "Medium", color: "var(--accent)", soft: "var(--accent-soft)" };
 }
 
 export function ReviewStage({ s }: { s: SorterApi }) {
@@ -122,7 +122,7 @@ export function ReviewStage({ s }: { s: SorterApi }) {
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${Math.round(stats.progress * 100)}%`,
-                background: "var(--clay)",
+                background: "var(--accent)",
               }}
             />
           </div>
@@ -194,7 +194,7 @@ export function ReviewStage({ s }: { s: SorterApi }) {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-[color:var(--color-ink-soft)]">
-                    <span className="h-2 w-2 animate-ping rounded-full bg-[color:var(--clay)]" />
+                    <span className="h-2 w-2 animate-ping rounded-full bg-[color:var(--accent)]" />
                     Reading image…
                   </div>
                 )}
@@ -249,8 +249,8 @@ export function ReviewStage({ s }: { s: SorterApi }) {
                   onClick={() => s.removeFolder(f)}
                   className="animate-pop group inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] py-1.5 pl-3 pr-2 text-[13px] font-medium transition-colors"
                   style={{
-                    background: "var(--clay-soft)",
-                    color: "var(--clay-ink)",
+                    background: "var(--accent-soft)",
+                    color: "var(--accent-ink)",
                   }}
                   title="Click to remove"
                 >

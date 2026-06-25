@@ -70,7 +70,7 @@ export function AiAssistant() {
       {!assistantOpen && (
         <button
           onClick={() => setAssistantOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex size-12 items-center justify-center rounded-full bg-clay text-primary-foreground shadow-xl shadow-black/40 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+          className="fixed bottom-6 right-6 z-40 flex size-12 items-center justify-center rounded-full bg-accent text-primary-foreground shadow-xl shadow-black/40 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
           aria-label="Open AI assistant"
         >
           <Sparkles className="size-5" />
@@ -80,8 +80,8 @@ export function AiAssistant() {
       <Sheet open={assistantOpen} onOpenChange={setAssistantOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
           <SheetHeader className="flex-row items-center gap-2.5 space-y-0">
-            <span className="flex size-8 items-center justify-center rounded-md bg-clay-soft">
-              <Sparkles className="size-4 text-clay-ink" />
+            <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft">
+              <Sparkles className="size-4 text-accent-ink" />
             </span>
             <div>
               <SheetTitle>Diorama AI</SheetTitle>
@@ -123,7 +123,7 @@ export function AiAssistant() {
                   className={cn(
                     "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                     m.role === "user"
-                      ? "bg-clay text-primary-foreground"
+                      ? "bg-accent text-primary-foreground"
                       : "border bg-surface text-foreground",
                   )}
                 >

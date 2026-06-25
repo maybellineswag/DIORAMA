@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useApp } from "@/lib/store";
+import { useApp, ACCENT_PRESETS } from "@/lib/store";
 import { MEMBERS } from "@/lib/mock/data";
 import type { Role } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,7 @@ const NOTIF = [
 ];
 
 export default function SettingsPage() {
-  const { workspace, theme, setTheme } = useApp();
+  const { workspace, theme, setTheme, accent, setAccent } = useApp();
   const [brand, setBrand] = React.useState(workspace.name);
   const [roles, setRoles] = React.useState<Record<string, Role>>(
     Object.fromEntries(MEMBERS.map((m) => [m.id, m.role])),
@@ -186,7 +186,7 @@ export default function SettingsPage() {
                     <p className="truncate text-xs text-ink-faint">{m.email}</p>
                   </div>
                   {m.role === "Owner" ? (
-                    <Badge variant="clay">Owner</Badge>
+                    <Badge variant="accent">Owner</Badge>
                   ) : (
                     <Select
                       value={roles[m.id]}
@@ -294,7 +294,7 @@ export default function SettingsPage() {
                   onClick={() => setTheme(t)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg border p-4 text-left transition-colors cursor-pointer",
-                    theme === t ? "border-clay/50 bg-clay-soft/30" : "hover:bg-accent/60",
+                    theme === t ? "border-accent/50 bg-accent-soft/30" : "hover:bg-elevated/60",
                   )}
                 >
                   <span className="flex size-9 items-center justify-center rounded-md bg-surface-2">
@@ -306,10 +306,47 @@ export default function SettingsPage() {
                       {t === "dark" ? "Default" : "Lighter surfaces"}
                     </p>
                   </div>
-                  {theme === t && <Check className="ml-auto size-4 text-clay" />}
+                  {theme === t && <Check className="ml-auto size-4 text-accent" />}
                 </button>
               ))}
             </div>
+          </Section>
+
+          <Section
+            title="Accent color"
+            description="Used across buttons, highlights, and interactive elements. Updates instantly."
+          >
+            <div className="flex flex-wrap gap-3">
+              {ACCENT_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setAccent(p.id)}
+                  title={p.label}
+                  aria-label={p.label}
+                  className={cn(
+                    "relative flex size-9 items-center justify-center rounded-full border transition-transform hover:scale-105 cursor-pointer",
+                    accent === p.id
+                      ? "border-foreground/60 ring-2 ring-offset-2 ring-offset-card"
+                      : "border-border",
+                  )}
+                  style={{
+                    backgroundColor: p.value,
+                    // @ts-expect-error CSS custom prop for the focus ring color
+                    "--tw-ring-color": p.value,
+                  }}
+                >
+                  {accent === p.id && (
+                    <Check
+                      className="size-4"
+                      style={{ color: p.foreground }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-ink-faint">
+              Active: <span className="capitalize text-ink-soft">{accent}</span>
+            </p>
           </Section>
 
           <Section title="Language">

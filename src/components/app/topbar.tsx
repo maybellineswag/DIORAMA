@@ -48,19 +48,19 @@ export function Topbar() {
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="size-4" />
-            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-clay" />
+            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-accent" />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-0">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <span className="text-sm font-medium">Notifications</span>
-            <Badge variant="clay">5 new</Badge>
+            <Badge variant="accent">5 new</Badge>
           </div>
           <div className="max-h-80 overflow-y-auto p-1">
             {RECENT_ACTIVITY.map((a) => (
               <div
                 key={a.id}
-                className="flex flex-col gap-0.5 rounded-md px-3 py-2.5 hover:bg-accent/60"
+                className="flex flex-col gap-0.5 rounded-md px-3 py-2.5 hover:bg-elevated/60"
               >
                 <p className="text-sm leading-snug">
                   <span className="font-medium">{a.who}</span>{" "}
@@ -81,7 +81,7 @@ export function Topbar() {
         onClick={() => setAssistantOpen(true)}
         className="gap-1.5"
       >
-        <Sparkles className="size-4 text-clay" />
+        <Sparkles className="size-4 text-accent" />
         <span className="hidden sm:inline">Ask AI</span>
       </Button>
     </header>

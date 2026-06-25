@@ -20,7 +20,7 @@ export function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:bg-accent cursor-pointer">
+        <button className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:bg-elevated cursor-pointer">
           <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-surface-2">
             <WorkspaceLogo workspace={workspace} />
           </span>
@@ -54,7 +54,7 @@ export function WorkspaceSwitcher() {
             </span>
             <Check
               className={cn(
-                "size-4 text-clay",
+                "size-4 text-accent",
                 workspace.id === w.id ? "opacity-100" : "opacity-0",
               )}
             />

@@ -65,8 +65,8 @@ export function Dropzone({ onFiles, busy }: Props) {
         onDrop={handleDrop}
         className="mt-10 w-full rounded-[var(--radius-lg)] border border-dashed p-12 text-center transition-all duration-200"
         style={{
-          borderColor: hover ? "var(--clay)" : "var(--color-line)",
-          background: hover ? "var(--clay-soft)" : "var(--color-surface)",
+          borderColor: hover ? "var(--accent)" : "var(--color-line)",
+          background: hover ? "var(--accent-soft)" : "var(--color-surface)",
           transform: hover ? "scale(1.005)" : "none",
         }}
       >

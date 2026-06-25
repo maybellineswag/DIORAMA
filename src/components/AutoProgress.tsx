@@ -73,7 +73,7 @@ export function AutoProgress({ s }: { s: SorterApi }) {
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${Math.round(stats.progress * 100)}%`,
-              background: "var(--clay)",
+              background: "var(--accent)",
             }}
           />
         </div>

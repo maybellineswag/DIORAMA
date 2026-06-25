@@ -46,7 +46,7 @@ export function MoodSorter({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex flex-col bg-paper">
       <div className="flex h-14 shrink-0 items-center justify-between border-b px-5">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-7 items-center justify-center rounded-md bg-clay-soft text-clay-ink">
+          <span className="flex size-7 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
             <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8L12 14.6 7 18.2l1.9-5.8L4 8.8h6.1z" />
             </svg>

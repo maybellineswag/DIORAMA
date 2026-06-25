@@ -53,10 +53,10 @@ import { cn } from "@/lib/utils";
 
 const STATUS_VARIANT: Record<
   ManufacturerStatus,
-  "good" | "clay" | "default" | "danger"
+  "good" | "accent" | "default" | "danger"
 > = {
   Active: "good",
-  Sampling: "clay",
+  Sampling: "accent",
   Inactive: "default",
   Blacklisted: "danger",
 };
@@ -353,7 +353,7 @@ function AddDialog({
         {/* URL scrape */}
         <div className="rounded-lg border border-dashed bg-surface-2/40 p-3">
           <Label className="mb-2 text-xs text-ink-soft">
-            <Sparkles className="size-3.5 text-clay" /> Auto-fill from URL
+            <Sparkles className="size-3.5 text-accent" /> Auto-fill from URL
           </Label>
           <div className="flex gap-2">
             <Input
