@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Dashboard was renamed to Home — keep old links/bookmarks working.
+  async redirects() {
+    return [{ source: "/dashboard", destination: "/home", permanent: false }];
+  },
 };
 
 export default nextConfig;
