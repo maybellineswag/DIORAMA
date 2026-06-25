@@ -71,7 +71,8 @@ const NOTIF = [
 ];
 
 export default function SettingsPage() {
-  const { workspace, theme, setTheme, accent, setAccent } = useApp();
+  const { workspace, theme, setTheme, accent, setAccent, setAccentColor } = useApp();
+  const [hex, setHex] = React.useState("#cd8662");
   const [brand, setBrand] = React.useState(workspace.name);
   const [roles, setRoles] = React.useState<Record<string, Role>>(
     Object.fromEntries(MEMBERS.map((m) => [m.id, m.role])),
@@ -344,6 +345,39 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
+            <Separator className="my-5" />
+
+            <div className="space-y-2">
+              <Label className="text-ink-faint">Custom color</Label>
+              <div className="flex items-center gap-2">
+                <label className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-full border">
+                  <span
+                    className="block size-full"
+                    style={{ backgroundColor: hex }}
+                  />
+                  <input
+                    type="color"
+                    value={hex}
+                    onChange={(e) => {
+                      setHex(e.target.value);
+                      setAccentColor(e.target.value);
+                    }}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+                <Input
+                  value={hex}
+                  onChange={(e) => setHex(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && setAccentColor(hex)}
+                  placeholder="#cd8662"
+                  className="max-w-[140px] font-mono"
+                />
+                <Button variant="secondary" size="sm" onClick={() => setAccentColor(hex)}>
+                  Apply
+                </Button>
+              </div>
+            </div>
+
             <p className="mt-3 text-xs text-ink-faint">
               Active: <span className="capitalize text-ink-soft">{accent}</span>
             </p>

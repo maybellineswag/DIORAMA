@@ -1,19 +1,33 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Factory, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Factory,
+  GripVertical,
+  Lightbulb,
+  SquareKanban,
+  Table as TableIcon,
+  LayoutGrid,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ProductDetail } from "@/components/app/product-detail";
-import { MemberAvatar, PriorityDot } from "@/components/app/bits";
+import { ViewSwitcher } from "@/components/app/view-switcher";
+import { MemberAvatar, PriorityDot, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer } from "@/lib/mock/data";
-import type { Product, SampleStatus, Track } from "@/lib/mock/types";
+import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer, member } from "@/lib/mock/data";
+import type { Product, SampleStatus, Track, Priority } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
+
+type View = "board" | "table" | "gallery";
 
 const TRACK_FILTERS: ("All" | Track)[] = [
   "All",
@@ -39,6 +53,29 @@ const TONE_TEXT: Record<string, string> = {
   info: "text-info",
 };
 
+const PRIORITY_RANK: Record<Priority, number> = {
+  Urgent: 0,
+  High: 1,
+  Medium: 2,
+  Low: 3,
+};
+
+/** Concept = pure idea (no mockup yet) → text-forward, no thumbnail. */
+const hasMockup = (p: Product) => p.status !== "Concept";
+
+function ConceptTile({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center rounded-md border border-dashed bg-surface-2 text-ink-faint",
+        className,
+      )}
+    >
+      <Lightbulb className="size-4" />
+    </div>
+  );
+}
+
 function ProductCard({
   product,
   onOpen,
@@ -57,9 +94,13 @@ function ProductCard({
       className="group cursor-pointer rounded-lg border bg-card p-2.5 shadow-sm transition-all hover:border-ink-faint/40 hover:shadow-md active:cursor-grabbing"
     >
       <div className="flex gap-2.5">
-        <div className="size-14 shrink-0 overflow-hidden rounded-md border">
-          <Thumb seed={product.seed} />
-        </div>
+        {hasMockup(product) ? (
+          <div className="size-14 shrink-0 overflow-hidden rounded-md border">
+            <Thumb seed={product.seed} />
+          </div>
+        ) : (
+          <ConceptTile className="size-14 shrink-0" />
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-1">
             <p className="line-clamp-2 flex-1 text-sm font-medium leading-snug">
@@ -89,8 +130,152 @@ function ProductCard({
   );
 }
 
+// ── Table view ───────────────────────────────────────────────
+type SortKey = "name" | "type" | "status" | "priority" | "assignee";
+
+function TableView({
+  products,
+  onOpen,
+}: {
+  products: Product[];
+  onOpen: (p: Product) => void;
+}) {
+  const [sort, setSort] = React.useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "priority",
+    dir: 1,
+  });
+
+  const sorted = [...products].sort((a, b) => {
+    let av: string | number = "";
+    let bv: string | number = "";
+    if (sort.key === "priority") {
+      av = PRIORITY_RANK[a.priority];
+      bv = PRIORITY_RANK[b.priority];
+    } else if (sort.key === "assignee") {
+      av = member(a.assigneeId)?.name ?? "";
+      bv = member(b.assigneeId)?.name ?? "";
+    } else {
+      av = a[sort.key];
+      bv = b[sort.key];
+    }
+    if (av < bv) return -1 * sort.dir;
+    if (av > bv) return 1 * sort.dir;
+    return 0;
+  });
+
+  const toggle = (key: SortKey) =>
+    setSort((s) =>
+      s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 },
+    );
+
+  const Th = ({ k, label }: { k: SortKey; label: string }) => (
+    <button
+      onClick={() => toggle(k)}
+      className="flex items-center gap-1 text-left text-xs font-medium text-ink-faint transition-colors hover:text-ink-soft cursor-pointer"
+    >
+      {label}
+      {sort.key === k ? (
+        sort.dir === 1 ? (
+          <ArrowUp className="size-3" />
+        ) : (
+          <ArrowDown className="size-3" />
+        )
+      ) : (
+        <ArrowUpDown className="size-3 opacity-40" />
+      )}
+    </button>
+  );
+
+  return (
+    <div className="overflow-x-auto rounded-xl border">
+      <div className="min-w-[760px]">
+        <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr_1fr_1fr] gap-4 border-b bg-surface-2/40 px-4 py-2.5">
+          <Th k="name" label="Product" />
+          <Th k="type" label="Type" />
+          <Th k="status" label="Status" />
+          <Th k="priority" label="Priority" />
+          <Th k="assignee" label="Assignee" />
+          <span className="text-xs font-medium text-ink-faint">Manufacturer</span>
+        </div>
+        {sorted.map((p) => {
+          const mf = manufacturer(p.manufacturerId);
+          return (
+            <button
+              key={p.id}
+              onClick={() => onOpen(p)}
+              className="grid w-full grid-cols-[1.6fr_0.8fr_1fr_0.8fr_1fr_1fr] items-center gap-4 border-b px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
+            >
+              <span className="flex items-center gap-2.5">
+                {hasMockup(p) ? (
+                  <span className="size-8 shrink-0 overflow-hidden rounded-md border">
+                    <Thumb seed={p.seed} />
+                  </span>
+                ) : (
+                  <ConceptTile className="size-8 shrink-0" />
+                )}
+                <span className="truncate text-sm font-medium">{p.name}</span>
+              </span>
+              <span className="truncate text-xs text-ink-soft">{p.type}</span>
+              <StatusBadge status={p.status} />
+              <span className="flex items-center gap-1.5 text-xs">
+                <PriorityDot priority={p.priority} /> {p.priority}
+              </span>
+              <MemberAvatar id={p.assigneeId} showName />
+              <span className="truncate text-xs text-ink-soft">
+                {mf ? mf.name : "—"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Gallery view ─────────────────────────────────────────────
+function GalleryView({
+  products,
+  onOpen,
+}: {
+  products: Product[];
+  onOpen: (p: Product) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {products.map((p) => (
+        <button key={p.id} onClick={() => onOpen(p)} className="group text-left cursor-pointer">
+          <div className="relative aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
+            {hasMockup(p) ? (
+              <Thumb seed={p.seed} />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-1 bg-surface-2 text-ink-faint">
+                <Lightbulb className="size-5" />
+                <span className="text-[11px]">Concept</span>
+              </div>
+            )}
+            <div className="absolute left-2 top-2">
+              <StatusBadge status={p.status} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{p.name}</p>
+              <p className="text-xs text-ink-faint">{p.type}</p>
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <PriorityDot priority={p.priority} />
+              <MemberAvatar id={p.assigneeId} className="size-5" />
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SamplesPage() {
   const [products, setProducts] = React.useState<Product[]>(PRODUCTS);
+  const [view, setView] = React.useState<View>("board");
   const [filter, setFilter] = React.useState<"All" | Track>("All");
   const [selected, setSelected] = React.useState<Product | null>(null);
   const [open, setOpen] = React.useState(false);
@@ -99,6 +284,13 @@ export default function SamplesPage() {
 
   const visibleTracks =
     filter === "All" ? TRACKS : TRACKS.filter((t) => t.track === filter);
+
+  const filteredProducts =
+    filter === "All"
+      ? products
+      : products.filter((p) =>
+          TRACKS.find((t) => t.track === filter)?.statuses.includes(p.status),
+        );
 
   const openProduct = (p: Product) => {
     setSelected(p);
@@ -109,10 +301,8 @@ export default function SamplesPage() {
     const id = dragId.current;
     setDragOver(null);
     if (!id) return;
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status } : p)),
-    );
     const moved = products.find((p) => p.id === id);
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
     if (moved && moved.status !== status) {
       toast.success(`Moved "${moved.name}"`, { description: `→ ${status}` });
     }
@@ -124,11 +314,22 @@ export default function SamplesPage() {
       <div className="space-y-4 p-6 pb-4 lg:px-8">
         <PageHeader
           title="Sample Tracker"
-          description="Every product, from concept to drop — drag cards to update status."
+          description="Every product, from concept to drop."
           actions={
-            <Button size="sm">
-              <Plus className="size-4" /> New product
-            </Button>
+            <div className="flex items-center gap-2">
+              <ViewSwitcher
+                value={view}
+                onChange={setView}
+                options={[
+                  { id: "board", label: "Board", icon: SquareKanban },
+                  { id: "table", label: "Table", icon: TableIcon },
+                  { id: "gallery", label: "Gallery", icon: LayoutGrid },
+                ]}
+              />
+              <Button size="sm">
+                <Plus className="size-4" /> New product
+              </Button>
+            </div>
           }
         />
         <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-1 w-fit">
@@ -150,67 +351,83 @@ export default function SamplesPage() {
       </div>
 
       {/* Board */}
-      <div className="min-h-0 flex-1 overflow-x-auto px-6 pb-6 lg:px-8">
-        <div className="flex h-full gap-6">
-          {visibleTracks.map((track) => (
-            <div key={track.track} className="flex h-full flex-col">
-              <div className="mb-3 flex items-center gap-2">
-                <span className={cn("size-2 rounded-full", TRACK_ACCENT[track.track])} />
-                <h2 className="text-sm font-medium">{track.track}</h2>
-              </div>
-              <div className="flex h-full gap-3">
-                {track.statuses.map((status) => {
-                  const cards = products.filter((p) => p.status === status);
-                  return (
-                    <div
-                      key={status}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragOver(status);
-                      }}
-                      onDragLeave={() => setDragOver((s) => (s === status ? null : s))}
-                      onDrop={() => drop(status)}
-                      className={cn(
-                        "flex h-full w-[248px] shrink-0 flex-col rounded-xl border bg-surface-2/40 transition-colors",
-                        dragOver === status && "border-accent/60 bg-accent-soft/30",
-                      )}
-                    >
-                      <div className="flex items-center justify-between px-3 py-2.5">
-                        <span
-                          className={cn(
-                            "text-[13px] font-medium",
-                            TONE_TEXT[STATUS_TONE[status]],
-                          )}
-                        >
-                          {status}
-                        </span>
-                        <span className="tabular flex size-5 items-center justify-center rounded-md bg-surface-hi text-[11px] text-ink-soft">
-                          {cards.length}
-                        </span>
-                      </div>
-                      <div className="flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-                        {cards.map((p) => (
-                          <ProductCard
-                            key={p.id}
-                            product={p}
-                            onOpen={() => openProduct(p)}
-                            onDragStart={() => (dragId.current = p.id)}
-                          />
-                        ))}
-                        {cards.length === 0 && (
-                          <div className="flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-ink-faint">
-                            Drop here
-                          </div>
+      {view === "board" && (
+        <div className="min-h-0 flex-1 overflow-x-auto px-6 pb-6 lg:px-8">
+          <div className="flex h-full gap-6">
+            {visibleTracks.map((track) => (
+              <div key={track.track} className="flex h-full flex-col">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className={cn("size-2 rounded-full", TRACK_ACCENT[track.track])} />
+                  <h2 className="text-sm font-medium">{track.track}</h2>
+                </div>
+                <div className="flex h-full gap-3">
+                  {track.statuses.map((status) => {
+                    const cards = products.filter((p) => p.status === status);
+                    return (
+                      <div
+                        key={status}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOver(status);
+                        }}
+                        onDragLeave={() => setDragOver((s) => (s === status ? null : s))}
+                        onDrop={() => drop(status)}
+                        className={cn(
+                          "flex h-full w-[248px] shrink-0 flex-col rounded-xl border bg-surface-2/40 transition-colors",
+                          dragOver === status && "border-accent/60 bg-accent-soft/30",
                         )}
+                      >
+                        <div className="flex items-center justify-between px-3 py-2.5">
+                          <span
+                            className={cn(
+                              "text-[13px] font-medium",
+                              TONE_TEXT[STATUS_TONE[status]],
+                            )}
+                          >
+                            {status}
+                          </span>
+                          <span className="tabular flex size-5 items-center justify-center rounded-md bg-surface-hi text-[11px] text-ink-soft">
+                            {cards.length}
+                          </span>
+                        </div>
+                        <div className="flex-1 space-y-2 overflow-y-auto px-2 pb-2">
+                          {cards.map((p) => (
+                            <ProductCard
+                              key={p.id}
+                              product={p}
+                              onOpen={() => openProduct(p)}
+                              onDragStart={() => (dragId.current = p.id)}
+                            />
+                          ))}
+                          {cards.length === 0 && (
+                            <div className="flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-ink-faint">
+                              Drop here
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Table */}
+      {view === "table" && (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
+          <TableView products={filteredProducts} onOpen={openProduct} />
+        </div>
+      )}
+
+      {/* Gallery */}
+      {view === "gallery" && (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
+          <GalleryView products={filteredProducts} onOpen={openProduct} />
+        </div>
+      )}
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full p-0 sm:max-w-lg">

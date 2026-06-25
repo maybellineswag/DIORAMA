@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    router.push("/dashboard");
+    router.push("/home");
   }
 
   return (

@@ -4,17 +4,18 @@ import * as React from "react";
 import {
   Upload,
   Sparkles,
-  LayoutGrid,
-  List,
   Box,
   FileText,
   Download,
   Folder,
   BookOpen,
+  Boxes,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
+import { ViewSwitcher } from "@/components/app/view-switcher";
 import { Thumb } from "@/components/thumb";
+import { ThreeViewer } from "@/components/three-viewer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,21 +26,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ASSETS, GUIDES, COLLECTIONS, SEASONS, PRODUCT_TYPES } from "@/lib/mock/data";
 import type { Asset, AssetCategory, Guide } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES: AssetCategory[] = [
+const CATEGORIES: ("All" | AssetCategory)[] = [
+  "All",
   "Graphics",
   "Hardware",
   "Notions",
   "Pieces",
   "Templates",
-  "Guides",
 ];
+
+function hashRatio(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return [1, 0.78, 1.25, 1.4][h % 4];
+}
 
 function AssetPreview({ asset }: { asset: Asset }) {
   const is3D = asset.category === "Hardware";
@@ -53,26 +65,29 @@ function AssetPreview({ asset }: { asset: Asset }) {
       </SheetHeader>
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <div className="relative aspect-square overflow-hidden rounded-xl border bg-surface-2">
-          <Thumb seed={asset.seed} />
-          {is3D && (
-            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-paper/70 py-2 text-xs text-ink-soft backdrop-blur">
-              <Box className="size-3.5" /> 3D viewer · drag to rotate
-            </div>
+          {is3D ? (
+            <>
+              <ThreeViewer seed={asset.seed} className="size-full" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-paper/70 py-2 text-xs text-ink-soft backdrop-blur">
+                <Box className="size-3.5" /> Live 3D · drag to rotate
+              </div>
+            </>
+          ) : (
+            <Thumb seed={asset.seed} />
           )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          <Badge variant="accent">{asset.category}</Badge>
+          <Badge variant="outline">{asset.fileType}</Badge>
+          <Badge variant="outline">{asset.season}</Badge>
+          <Badge variant="outline">{asset.productType}</Badge>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
           <div>
             <p className="text-xs text-ink-faint">Collection</p>
             <p>{asset.collection}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-faint">Season</p>
-            <p>{asset.season}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-faint">Product type</p>
-            <p>{asset.productType}</p>
           </div>
           <div>
             <p className="text-xs text-ink-faint">Size</p>
@@ -92,7 +107,7 @@ function AssetPreview({ asset }: { asset: Asset }) {
           <>
             <Separator className="my-5" />
             <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink-faint">
-              Sub-assets
+              Linked sub-assets
             </p>
             <div className="space-y-2">
               {asset.subAssets.map((s) => (
@@ -140,9 +155,7 @@ function GuidesView() {
               <BookOpen className="size-3.5 text-ink-faint" />
               <span className="text-sm font-medium">{g.title}</span>
             </div>
-            <span className="line-clamp-1 pl-5 text-xs text-ink-faint">
-              {g.excerpt}
-            </span>
+            <span className="line-clamp-1 pl-5 text-xs text-ink-faint">{g.excerpt}</span>
           </button>
         ))}
       </div>
@@ -155,7 +168,7 @@ function GuidesView() {
         <h2 className="display mt-3 text-2xl tracking-tight">{active.title}</h2>
         <p className="mt-1 text-sm text-ink-soft">{active.excerpt}</p>
         <Separator className="my-5" />
-        <div className="prose-diorama space-y-4">
+        <div className="space-y-4">
           {active.body.map((p, i) => (
             <p key={i} className="text-sm leading-relaxed text-ink-soft">
               {p}
@@ -168,8 +181,8 @@ function GuidesView() {
 }
 
 export default function AssetsPage() {
-  const [category, setCategory] = React.useState<AssetCategory>("Graphics");
-  const [view, setView] = React.useState<"grid" | "list">("grid");
+  const [view, setView] = React.useState<"files" | "guides">("files");
+  const [category, setCategory] = React.useState<"All" | AssetCategory>("All");
   const [query, setQuery] = React.useState("");
   const [collection, setCollection] = React.useState("all");
   const [season, setSeason] = React.useState("all");
@@ -177,13 +190,13 @@ export default function AssetsPage() {
   const [selected, setSelected] = React.useState<Asset | null>(null);
   const [open, setOpen] = React.useState(false);
 
-  const filtered = ASSETS.filter((a) => a.category === category)
+  const filtered = ASSETS.filter((a) => category === "All" || a.category === category)
     .filter((a) => collection === "all" || a.collection === collection)
     .filter((a) => season === "all" || a.season === season)
     .filter((a) => ptype === "all" || a.productType === ptype)
     .filter((a) =>
       query.trim()
-        ? (a.name + a.fileType + a.productType)
+        ? (a.name + a.fileType + a.productType + a.category)
             .toLowerCase()
             .includes(query.toLowerCase())
         : true,
@@ -198,39 +211,36 @@ export default function AssetsPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Asset Library"
-        description="Every graphic, file, and brand document in one organized place."
+        description="A tag-based library — every file is searchable and filterable, no folder digging."
         actions={
-          <Button size="sm">
-            <Upload className="size-4" /> Upload
-          </Button>
+          <div className="flex items-center gap-2">
+            <ViewSwitcher
+              value={view}
+              onChange={setView}
+              options={[
+                { id: "files", label: "Files", icon: Boxes },
+                { id: "guides", label: "Guides", icon: BookOpen },
+              ]}
+            />
+            <Button size="sm">
+              <Upload className="size-4" /> Upload
+            </Button>
+          </div>
         }
       />
 
-      <Tabs
-        value={category}
-        onValueChange={(v) => setCategory(v as AssetCategory)}
-      >
-        <TabsList>
-          {CATEGORIES.map((c) => (
-            <TabsTrigger key={c} value={c}>
-              {c}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {category === "Guides" ? (
+      {view === "guides" ? (
         <GuidesView />
       ) : (
         <>
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px]">
-              <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent" />
+            <div className="relative min-w-[220px] flex-1">
+              <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent-ink" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="AI search — try 'leaf motif' or 'zipper'…"
+                placeholder="AI search — try 'leaf motif', 'zipper', 'care label'…"
                 className="pl-9"
               />
             </div>
@@ -247,7 +257,7 @@ export default function AssetsPage() {
             </Select>
             <Select value={ptype} onValueChange={setPtype}>
               <SelectTrigger size="sm" className="w-auto min-w-[130px]">
-                <SelectValue placeholder="Product type" />
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
@@ -268,49 +278,51 @@ export default function AssetsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-1 rounded-md border bg-surface-2/60 p-0.5">
+          </div>
+
+          {/* Category tags (filter, not folders) */}
+          <div className="flex flex-wrap items-center gap-2">
+            {CATEGORIES.map((c) => (
               <button
-                onClick={() => setView("grid")}
+                key={c}
+                onClick={() => setCategory(c)}
                 className={cn(
-                  "flex size-7 items-center justify-center rounded transition-colors cursor-pointer",
-                  view === "grid" ? "bg-card text-foreground shadow-sm" : "text-ink-faint",
+                  "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
+                  category === c
+                    ? "border-accent/40 bg-accent-soft text-accent-ink"
+                    : "border-border text-ink-soft hover:bg-elevated/60 hover:text-foreground",
                 )}
               >
-                <LayoutGrid className="size-4" />
+                {c}
               </button>
-              <button
-                onClick={() => setView("list")}
-                className={cn(
-                  "flex size-7 items-center justify-center rounded transition-colors cursor-pointer",
-                  view === "list" ? "bg-card text-foreground shadow-sm" : "text-ink-faint",
-                )}
-              >
-                <List className="size-4" />
-              </button>
-            </div>
+            ))}
           </div>
 
           {query.trim() && (
             <p className="text-xs text-ink-faint">
-              <Sparkles className="mr-1 inline size-3 text-accent" />
-              Showing {filtered.length} AI-ranked results for “{query}”
+              <Sparkles className="mr-1 inline size-3 text-accent-ink" />
+              {filtered.length} AI-ranked results for “{query}”
             </p>
           )}
 
+          {/* Masonry of files */}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center">
               <Folder className="size-7 text-ink-faint" />
-              <p className="text-sm text-ink-soft">No assets match these filters</p>
+              <p className="text-sm text-ink-soft">No files match these filters</p>
             </div>
-          ) : view === "grid" ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          ) : (
+            <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 [&>*]:mb-4">
               {filtered.map((a) => (
                 <button
                   key={a.id}
                   onClick={() => openAsset(a)}
-                  className="group text-left cursor-pointer"
+                  className="group block w-full break-inside-avoid overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
                 >
-                  <div className="relative aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
+                  <div
+                    className="relative overflow-hidden"
+                    style={{ aspectRatio: String(hashRatio(a.seed)) }}
+                  >
                     <Thumb seed={a.seed} />
                     {a.category === "Hardware" && (
                       <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-paper/80 px-1.5 py-0.5 text-[10px] text-ink-soft backdrop-blur">
@@ -323,38 +335,14 @@ export default function AssetsPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 truncate text-sm font-medium">{a.name}</p>
-                  <p className="text-xs text-ink-faint">
-                    {a.fileType} · {a.size}
-                  </p>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border">
-              <div className="grid grid-cols-[1fr_120px_120px_100px] gap-4 border-b bg-surface-2/40 px-4 py-2.5 text-xs font-medium text-ink-faint">
-                <span>Name</span>
-                <span>Collection</span>
-                <span>Season</span>
-                <span>Type</span>
-              </div>
-              {filtered.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => openAsset(a)}
-                  className="grid w-full grid-cols-[1fr_120px_120px_100px] items-center gap-4 border-b px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
-                >
-                  <span className="flex items-center gap-3">
-                    <span className="size-8 shrink-0 overflow-hidden rounded-md border">
-                      <Thumb seed={a.seed} />
-                    </span>
-                    <span className="truncate text-sm">{a.name}</span>
-                  </span>
-                  <span className="truncate text-xs text-ink-soft">
-                    {a.collection.split(" — ")[0]}
-                  </span>
-                  <span className="text-xs text-ink-soft">{a.season}</span>
-                  <Badge variant="outline" className="w-fit">{a.fileType}</Badge>
+                  <div className="p-3">
+                    <p className="truncate text-sm font-medium">{a.name}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      <Badge variant="outline">{a.category}</Badge>
+                      <Badge variant="outline">{a.fileType}</Badge>
+                      {a.season !== "Core" && <Badge variant="outline">{a.season}</Badge>}
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>

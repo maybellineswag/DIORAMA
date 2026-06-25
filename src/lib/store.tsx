@@ -31,8 +31,9 @@ interface AppState {
   setWorkspace: (id: string) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
-  accent: string; // active accent preset id
+  accent: string; // active accent preset id, or "custom"
   setAccent: (id: string) => void;
+  setAccentColor: (hex: string) => void; // arbitrary custom hex
   commandOpen: boolean;
   setCommandOpen: (v: boolean) => void;
   assistantOpen: boolean;
@@ -55,13 +56,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(t);
   }, []);
 
+  const applyAccent = (value: string, foreground: string) => {
+    const root = document.documentElement;
+    root.style.setProperty("--accent", value);
+    root.style.setProperty("--accent-foreground", foreground);
+  };
+
   // Swap the global --accent (and its readable foreground) instantly.
   const setAccent = React.useCallback((id: string) => {
     const preset = ACCENT_PRESETS.find((p) => p.id === id) ?? ACCENT_PRESETS[0];
     setAccentState(preset.id);
-    const root = document.documentElement;
-    root.style.setProperty("--accent", preset.value);
-    root.style.setProperty("--accent-foreground", preset.foreground);
+    applyAccent(preset.value, preset.foreground);
+  }, []);
+
+  // Apply an arbitrary hex; pick a readable foreground from its luminance.
+  const setAccentColor = React.useCallback((hex: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return;
+    const v = `#${m[1]}`;
+    const r = parseInt(m[1].slice(0, 2), 16) / 255;
+    const g = parseInt(m[1].slice(2, 4), 16) / 255;
+    const b = parseInt(m[1].slice(4, 6), 16) / 255;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    setAccentState("custom");
+    applyAccent(v, lum > 0.6 ? "#0f0f0f" : "#ffffff");
   }, []);
 
   // Global ⌘K / Ctrl-K to open the command menu.
@@ -86,6 +104,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTheme,
     accent,
     setAccent,
+    setAccentColor,
     commandOpen,
     setCommandOpen,
     assistantOpen,

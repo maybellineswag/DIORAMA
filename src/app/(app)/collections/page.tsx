@@ -6,11 +6,15 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
+  Minimize2,
+  Maximize2,
   Sparkles,
   Type,
   Frame as FrameIcon,
   Shirt,
   X,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -100,9 +104,27 @@ export default function CollectionsPage() {
   const [prompt, setPrompt] = React.useState("");
   const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null);
   const [generating, setGenerating] = React.useState(false);
+  const [aiOpen, setAiOpen] = React.useState(true);
+  const [fullscreen, setFullscreen] = React.useState(false);
 
   const pan = React.useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
-  const drag = React.useRef<{ id: string; sx: number; sy: number; ix: number; iy: number } | null>(null);
+  const drag = React.useRef<{
+    id: string;
+    sx: number;
+    sy: number;
+    ix: number;
+    iy: number;
+    children: { id: string; ix: number; iy: number }[];
+  } | null>(null);
+  const resize = React.useRef<{
+    id: string;
+    sx: number;
+    sy: number;
+    iw: number;
+    ih: number;
+    dirX: boolean;
+    dirY: boolean;
+  } | null>(null);
 
   // ── Pointer handlers ──
   const onBgPointerDown = (e: React.PointerEvent) => {
@@ -114,27 +136,71 @@ export default function CollectionsPage() {
   const onItemPointerDown = (e: React.PointerEvent, item: Item) => {
     e.stopPropagation();
     if (e.button !== 0) return;
-    drag.current = { id: item.id, sx: e.clientX, sy: e.clientY, ix: item.x, iy: item.y };
+    // Moving a group carries every item currently inside its bounds.
+    let children: { id: string; ix: number; iy: number }[] = [];
+    if (item.type === "group") {
+      const g = item;
+      children = items
+        .filter(
+          (it) =>
+            it.id !== g.id &&
+            it.x >= g.x &&
+            it.x <= g.x + g.w &&
+            it.y >= g.y &&
+            it.y <= g.y + g.h,
+        )
+        .map((it) => ({ id: it.id, ix: it.x, iy: it.y }));
+    }
+    drag.current = { id: item.id, sx: e.clientX, sy: e.clientY, ix: item.x, iy: item.y, children };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const onResizePointerDown = (
+    e: React.PointerEvent,
+    g: Extract<Item, { type: "group" }>,
+    dirX: boolean,
+    dirY: boolean,
+  ) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    resize.current = { id: g.id, sx: e.clientX, sy: e.clientY, iw: g.w, ih: g.h, dirX, dirY };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (resize.current) {
+      const r = resize.current;
+      const nw = r.dirX ? Math.max(180, r.iw + (e.clientX - r.sx) / scale) : r.iw;
+      const nh = r.dirY ? Math.max(130, r.ih + (e.clientY - r.sy) / scale) : r.ih;
+      setItems((prev) =>
+        prev.map((it) => (it.id === r.id && it.type === "group" ? { ...it, w: nw, h: nh } : it)),
+      );
+      return;
+    }
     if (drag.current) {
       const d = drag.current;
-      const nx = d.ix + (e.clientX - d.sx) / scale;
-      const ny = d.iy + (e.clientY - d.sy) / scale;
+      const dx = (e.clientX - d.sx) / scale;
+      const dy = (e.clientY - d.sy) / scale;
       setItems((prev) =>
-        prev.map((it) => (it.id === d.id ? { ...it, x: nx, y: ny } : it)),
+        prev.map((it) => {
+          if (it.id === d.id) return { ...it, x: d.ix + dx, y: d.iy + dy };
+          const child = d.children.find((c) => c.id === it.id);
+          if (child) return { ...it, x: child.ix + dx, y: child.iy + dy };
+          return it;
+        }),
       );
-    } else if (pan.current) {
-      const p = pan.current;
-      setOffset({ x: p.ox + (e.clientX - p.sx), y: p.oy + (e.clientY - p.sy) });
+      return;
+    }
+    if (pan.current) {
+      const pn = pan.current;
+      setOffset({ x: pn.ox + (e.clientX - pn.sx), y: pn.oy + (e.clientY - pn.sy) });
     }
   };
 
   const onPointerUp = () => {
     drag.current = null;
     pan.current = null;
+    resize.current = null;
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -189,7 +255,12 @@ export default function CollectionsPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div
+      className={cn(
+        "flex h-full",
+        fullscreen && "fixed inset-0 z-50 bg-paper",
+      )}
+    >
       {/* Canvas */}
       <div className="relative min-w-0 flex-1 overflow-hidden">
         {/* Toolbar */}
@@ -231,6 +302,23 @@ export default function CollectionsPage() {
               <FrameIcon className="size-4" /> Group
             </Button>
           </div>
+        </div>
+
+        {/* Top-right controls */}
+        <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+          <Button
+            size="icon-sm"
+            variant="secondary"
+            onClick={() => setFullscreen((v) => !v)}
+            title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </Button>
+          {!aiOpen && (
+            <Button size="sm" variant="secondary" onClick={() => setAiOpen(true)}>
+              <PanelRightOpen className="size-4" /> AI Builder
+            </Button>
+          )}
         </div>
 
         {/* Zoom controls */}
@@ -277,6 +365,7 @@ export default function CollectionsPage() {
                         <input
                           autoFocus
                           defaultValue={it.text}
+                          onPointerDown={(e) => e.stopPropagation()}
                           onBlur={(e) => {
                             setItems((prev) =>
                               prev.map((x) => (x.id === it.id ? { ...x, text: e.target.value } : x)),
@@ -301,6 +390,20 @@ export default function CollectionsPage() {
                         <X className="size-3.5 text-ink-faint" />
                       </button>
                     </div>
+
+                    {/* Resize handles */}
+                    <div
+                      onPointerDown={(e) => onResizePointerDown(e, it, true, false)}
+                      className="absolute right-0 top-0 h-full w-2 cursor-ew-resize"
+                    />
+                    <div
+                      onPointerDown={(e) => onResizePointerDown(e, it, false, true)}
+                      className="absolute bottom-0 left-0 h-2 w-full cursor-ns-resize"
+                    />
+                    <div
+                      onPointerDown={(e) => onResizePointerDown(e, it, true, true)}
+                      className="absolute -bottom-1 -right-1 size-4 cursor-nwse-resize rounded-sm border border-line bg-card opacity-0 transition-opacity group-hover:opacity-100"
+                    />
                   </div>
                 );
               }
@@ -316,6 +419,7 @@ export default function CollectionsPage() {
                       <input
                         autoFocus
                         defaultValue={it.text}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onBlur={(e) => {
                           setItems((prev) =>
                             prev.map((x) => (x.id === it.id ? { ...x, text: e.target.value } : x)),
@@ -368,115 +472,130 @@ export default function CollectionsPage() {
       </div>
 
       {/* AI builder */}
-      <aside className="hidden w-80 shrink-0 flex-col border-l bg-surface-2/30 xl:flex">
-        <div className="flex items-center gap-2 border-b px-5 py-4">
-          <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft">
-            <Sparkles className="size-4 text-accent-ink" />
-          </span>
-          <div>
-            <p className="text-sm font-medium leading-tight">AI Collection Builder</p>
-            <p className="text-xs text-ink-faint leading-tight">Describe the drop you want</p>
-          </div>
-        </div>
-
-        <div className="space-y-3 p-5">
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g. small capsule drop, hoodie as the main piece, 2–3 accessories that make sense, autumn vibe"
-            className="min-h-28 resize-none"
-          />
-          <Button className="w-full" onClick={generate} disabled={generating}>
-            <Sparkles className="size-4" />
-            {generating ? "Building…" : "Build collection"}
-          </Button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-          {generating && (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-surface-hi" />
-              ))}
+      {aiOpen && (
+        <aside className="hidden w-80 shrink-0 flex-col border-l bg-surface-2/30 xl:flex">
+          <div className="flex items-center gap-2.5 border-b px-5 py-4">
+            <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft">
+              <Sparkles className="size-4 text-accent-ink" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium leading-tight">AI Collection Builder</p>
+              <p className="text-xs text-ink-faint leading-tight">Describe the drop you want</p>
             </div>
-          )}
+            <button
+              onClick={() => setAiOpen(false)}
+              className="text-ink-faint transition-colors hover:text-foreground cursor-pointer"
+              title="Hide panel"
+            >
+              <PanelRightClose className="size-4" />
+            </button>
+          </div>
 
-          {suggestion && (
-            <div className="space-y-4 animate-fade-up">
-              <div className="rounded-lg border bg-card p-3.5">
-                <p className="display text-base tracking-tight">{suggestion.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                  {suggestion.vibe}
-                </p>
-              </div>
+          <div className="space-y-3 p-5">
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. small capsule drop, hoodie as the main piece, 2–3 accessories that make sense, autumn vibe"
+              className="min-h-28 resize-none"
+            />
+            <Button className="w-full" onClick={generate} disabled={generating}>
+              <Sparkles className="size-4" />
+              {generating ? "Building…" : "Build collection"}
+            </Button>
+            <p className="rounded-md bg-surface-2/60 px-3 py-2 text-[11px] leading-relaxed text-ink-faint">
+              <Shirt className="mr-1 inline size-3" />
+              Builds the drop using <span className="text-ink-soft">your own products</span> from
+              the Sample Tracker — every suggestion is a real Olivine piece you can drop onto the
+              canvas.
+            </p>
+          </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
-                  Suggested mix
-                </p>
-                <button
-                  className="text-xs text-accent-ink hover:underline cursor-pointer"
-                  onClick={() => {
-                    suggestion.picks.forEach((p, i) => {
-                      const pid = p.productId;
-                      if (!pid) return;
-                      setItems((prev) => [
-                        ...prev,
-                        {
-                          id: uid(),
-                          type: "product",
-                          x: (-offset.x + 200 + (i % 3) * 190) / scale,
-                          y: (-offset.y + 520 + Math.floor(i / 3) * 230) / scale,
-                          productId: pid,
-                        },
-                      ]);
-                    });
-                    toast.success("Added suggested mix to canvas");
-                  }}
-                >
-                  Add all
-                </button>
-              </div>
-
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+            {generating && (
               <div className="space-y-2">
-                {suggestion.picks.map((p) => (
-                  <div key={p.name} className="rounded-lg border bg-card p-3">
-                    <div className="flex items-start gap-2.5">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2">
-                        <Shirt className="size-4 text-ink-soft" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-medium">{p.name}</p>
-                          <Badge variant="accent">{p.role}</Badge>
-                        </div>
-                        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                          {p.rationale}
-                        </p>
-                        {p.productId && (
-                          <button
-                            onClick={() => addProduct(p.productId!)}
-                            className="mt-2 inline-flex items-center gap-1 text-xs text-accent-ink hover:underline cursor-pointer"
-                          >
-                            <Plus className="size-3" /> Add to canvas
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-lg bg-surface-hi" />
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {!suggestion && !generating && (
-            <p className="text-xs leading-relaxed text-ink-faint">
-              Describe the kind of collection you want and the AI will propose a
-              product mix with rationale you can drop straight onto the canvas.
-            </p>
-          )}
-        </div>
-      </aside>
+            {suggestion && (
+              <div className="space-y-4 animate-fade-up">
+                <div className="rounded-lg border bg-card p-3.5">
+                  <p className="display text-base tracking-tight">{suggestion.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                    {suggestion.vibe}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+                    Suggested mix
+                  </p>
+                  <button
+                    className="text-xs text-accent-ink hover:underline cursor-pointer"
+                    onClick={() => {
+                      suggestion.picks.forEach((p, i) => {
+                        const pid = p.productId;
+                        if (!pid) return;
+                        setItems((prev) => [
+                          ...prev,
+                          {
+                            id: uid(),
+                            type: "product",
+                            x: (-offset.x + 200 + (i % 3) * 190) / scale,
+                            y: (-offset.y + 520 + Math.floor(i / 3) * 230) / scale,
+                            productId: pid,
+                          },
+                        ]);
+                      });
+                      toast.success("Added suggested mix to canvas");
+                    }}
+                  >
+                    Add all
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {suggestion.picks.map((p) => (
+                    <div key={p.name} className="rounded-lg border bg-card p-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2">
+                          <Shirt className="size-4 text-ink-soft" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate text-sm font-medium">{p.name}</p>
+                            <Badge variant="accent">{p.role}</Badge>
+                          </div>
+                          <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                            {p.rationale}
+                          </p>
+                          {p.productId && (
+                            <button
+                              onClick={() => addProduct(p.productId!)}
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-accent-ink hover:underline cursor-pointer"
+                            >
+                              <Plus className="size-3" /> Add to canvas
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!suggestion && !generating && (
+              <p className="text-xs leading-relaxed text-ink-faint">
+                Describe the kind of collection you want and the AI will propose a
+                product mix with rationale you can drop straight onto the canvas.
+              </p>
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard,
+  House,
   SquareKanban,
   Library,
   Images,
@@ -18,7 +18,7 @@ export interface NavItem {
 }
 
 export const NAV: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, hint: "Workspace overview" },
+  { label: "Home", href: "/home", icon: House, hint: "Overview" },
   { label: "Sample Tracker", href: "/samples", icon: SquareKanban, hint: "Products by status" },
   { label: "Asset Library", href: "/assets", icon: Library, hint: "Files & guides" },
   { label: "Moodboard", href: "/moodboard", icon: Images, hint: "References & AI sort" },

@@ -9,7 +9,7 @@ import {
   Plus,
 } from "lucide-react";
 
-import { PageHeader } from "@/components/app/page-header";
+import { Greeting } from "@/components/app/greeting";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,13 @@ const TONE: Record<string, { dot: string; bar: string }> = {
   warn: { dot: "bg-warn", bar: "bg-warn" },
 };
 
-export default function DashboardPage() {
+const contextHref: Record<string, string> = {
+  "Sample Tracker": "/samples",
+  Moodboard: "/moodboard",
+  Tasks: "/tasks",
+};
+
+export default function HomePage() {
   const tracks = productsByStatusTrack();
   const total = PRODUCTS.length;
 
@@ -48,78 +54,84 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-6 lg:p-8">
-      <PageHeader
-        title="Good morning, Sasha"
-        description="Here's what's moving across Olivine today — Thursday, June 25."
-        actions={
-          <Button size="sm" asChild>
-            <Link href="/samples">
-              <Plus className="size-4" /> New product
-            </Link>
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <Greeting name="Sasha" />
+          <p className="text-sm text-ink-soft">
+            Here&apos;s what&apos;s moving across Olivine today.
+          </p>
+        </div>
+        <Button size="sm" asChild>
+          <Link href="/samples">
+            <Plus className="size-4" /> New product
+          </Link>
+        </Button>
+      </div>
 
-      {/* Pipeline summary */}
+      {/* Pipeline summary — each links into the tracker */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statusCards.map((s) => (
-          <Card key={s.label} className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-ink-soft">{s.label}</span>
-              <span className={cn("size-2 rounded-full", TONE[s.tone].dot)} />
-            </div>
-            <div className="mt-3 flex items-end gap-1.5">
-              <span className="tabular text-3xl font-medium leading-none">
-                {s.value}
-              </span>
-              <span className="text-xs text-ink-faint">/ {total} products</span>
-            </div>
-            <Progress
-              value={(s.value / total) * 100}
-              className="mt-4"
-              indicatorClassName={TONE[s.tone].bar}
-            />
-          </Card>
+          <Link key={s.label} href="/samples">
+            <Card className="p-5 transition-all hover:border-ink-faint/40 hover:shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink-soft">{s.label}</span>
+                <span className={cn("size-2 rounded-full", TONE[s.tone].dot)} />
+              </div>
+              <div className="mt-3 flex items-end gap-1.5">
+                <span className="tabular text-3xl font-medium leading-none">
+                  {s.value}
+                </span>
+                <span className="text-xs text-ink-faint">/ {total} products</span>
+              </div>
+              <Progress
+                value={(s.value / total) * 100}
+                className="mt-4"
+                indicatorClassName={TONE[s.tone].bar}
+              />
+            </Card>
+          </Link>
         ))}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Shopify */}
         <div className="space-y-6 lg:col-span-2">
-          <Card className="overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-3.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Shopify performance</span>
-                <Badge variant="good">Connected</Badge>
-              </div>
-              <span className="text-xs text-ink-faint">Last 30 days</span>
-            </div>
-            <div className="grid grid-cols-3 divide-x">
-              {[
-                { label: "Revenue", value: money(SHOPIFY_STATS.revenue30d), delta: SHOPIFY_STATS.revenueDelta },
-                { label: "Orders", value: SHOPIFY_STATS.orders30d.toLocaleString(), delta: SHOPIFY_STATS.ordersDelta },
-                { label: "Avg. order", value: money(SHOPIFY_STATS.aov), delta: SHOPIFY_STATS.aovDelta },
-              ].map((m) => (
-                <div key={m.label} className="p-5">
-                  <p className="text-xs text-ink-soft">{m.label}</p>
-                  <p className="tabular mt-1.5 text-2xl font-medium">{m.value}</p>
-                  <p
-                    className={cn(
-                      "mt-1 flex items-center gap-1 text-xs",
-                      m.delta >= 0 ? "text-good" : "text-danger",
-                    )}
-                  >
-                    {m.delta >= 0 ? (
-                      <TrendingUp className="size-3" />
-                    ) : (
-                      <TrendingDown className="size-3" />
-                    )}
-                    {Math.abs(m.delta)}%
-                  </p>
+          <Link href="/settings" className="block">
+            <Card className="overflow-hidden transition-all hover:border-ink-faint/40 hover:shadow-md">
+              <div className="flex items-center justify-between border-b px-5 py-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Shopify performance</span>
+                  <Badge variant="good">Connected</Badge>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <span className="text-xs text-ink-faint">Last 30 days</span>
+              </div>
+              <div className="grid grid-cols-3 divide-x">
+                {[
+                  { label: "Revenue", value: money(SHOPIFY_STATS.revenue30d), delta: SHOPIFY_STATS.revenueDelta },
+                  { label: "Orders", value: SHOPIFY_STATS.orders30d.toLocaleString(), delta: SHOPIFY_STATS.ordersDelta },
+                  { label: "Avg. order", value: money(SHOPIFY_STATS.aov), delta: SHOPIFY_STATS.aovDelta },
+                ].map((m) => (
+                  <div key={m.label} className="p-5">
+                    <p className="text-xs text-ink-soft">{m.label}</p>
+                    <p className="tabular mt-1.5 text-2xl font-medium">{m.value}</p>
+                    <p
+                      className={cn(
+                        "mt-1 flex items-center gap-1 text-xs",
+                        m.delta >= 0 ? "text-good" : "text-danger",
+                      )}
+                    >
+                      {m.delta >= 0 ? (
+                        <TrendingUp className="size-3" />
+                      ) : (
+                        <TrendingDown className="size-3" />
+                      )}
+                      {Math.abs(m.delta)}%
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </Link>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <Card>
@@ -128,7 +140,11 @@ export default function DashboardPage() {
               </div>
               <div className="divide-y">
                 {SHOPIFY_STATS.topProducts.map((p, i) => (
-                  <div key={p.name} className="flex items-center gap-3 px-5 py-3">
+                  <Link
+                    key={p.name}
+                    href="/samples"
+                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-elevated/50"
+                  >
                     <span className="tabular w-4 text-xs text-ink-faint">{i + 1}</span>
                     <div className="size-9 shrink-0 overflow-hidden rounded-md border">
                       <Thumb seed={p.name} />
@@ -140,7 +156,7 @@ export default function DashboardPage() {
                     <span className="tabular text-sm text-ink-soft">
                       {money(p.revenue)}
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </Card>
@@ -152,7 +168,11 @@ export default function DashboardPage() {
               </div>
               <div className="divide-y">
                 {SHOPIFY_STATS.inventoryAlerts.map((a) => (
-                  <div key={a.name} className="flex items-center justify-between px-5 py-3">
+                  <Link
+                    key={a.name}
+                    href="/samples"
+                    className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-elevated/50"
+                  >
                     <div className="min-w-0">
                       <p className="truncate text-sm">{a.name}</p>
                       <p className="text-xs text-ink-faint">{a.units} units left</p>
@@ -160,7 +180,7 @@ export default function DashboardPage() {
                     <Badge variant={a.level === "Critical" ? "danger" : "warn"}>
                       {a.level}
                     </Badge>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </Card>
@@ -175,7 +195,11 @@ export default function DashboardPage() {
             </div>
             <div className="divide-y">
               {UPCOMING_DEADLINES.map((d) => (
-                <div key={d.id} className="flex items-center gap-3 px-5 py-3">
+                <Link
+                  key={d.id}
+                  href="/samples"
+                  className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-elevated/50"
+                >
                   <div
                     className={cn(
                       "flex size-9 shrink-0 flex-col items-center justify-center rounded-md border text-center",
@@ -193,7 +217,7 @@ export default function DashboardPage() {
                   </div>
                   <p className="min-w-0 flex-1 truncate text-sm">{d.label}</p>
                   <span className="text-xs text-ink-faint">{d.daysOut}d</span>
-                </div>
+                </Link>
               ))}
             </div>
           </Card>
@@ -202,9 +226,13 @@ export default function DashboardPage() {
             <div className="border-b px-5 py-3.5">
               <span className="text-sm font-medium">Recent activity</span>
             </div>
-            <div className="space-y-3 p-5">
+            <div className="divide-y">
               {RECENT_ACTIVITY.map((a) => (
-                <div key={a.id} className="flex gap-3">
+                <Link
+                  key={a.id}
+                  href={contextHref[a.context] ?? "/home"}
+                  className="flex gap-3 px-5 py-3 transition-colors hover:bg-elevated/50"
+                >
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                   <div>
                     <p className="text-sm leading-snug">
@@ -215,7 +243,7 @@ export default function DashboardPage() {
                       {a.context} · {a.at}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </Card>
@@ -226,7 +254,7 @@ export default function DashboardPage() {
       <section>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Jump back in</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {NAV.filter((n) => n.href !== "/dashboard").map((n) => {
+          {NAV.filter((n) => n.href !== "/home").map((n) => {
             const Icon = n.icon;
             return (
               <Link key={n.href} href={n.href}>

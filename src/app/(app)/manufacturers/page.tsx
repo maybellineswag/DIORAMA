@@ -6,13 +6,13 @@ import {
   Star,
   Globe,
   Mail,
-  Phone,
   MessageCircle,
   Factory,
   Package,
   Send,
   Sparkles,
   FileText,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +21,6 @@ import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -48,7 +47,12 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MANUFACTURERS, PRODUCTS } from "@/lib/mock/data";
-import type { Manufacturer, ManufacturerStatus, CommLogEntry } from "@/lib/mock/types";
+import type {
+  Manufacturer,
+  ManufacturerStatus,
+  CommLogEntry,
+  Capability,
+} from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_VARIANT: Record<
@@ -61,6 +65,16 @@ const STATUS_VARIANT: Record<
   Blacklisted: "danger",
 };
 
+const minMoq = (m: Manufacturer) =>
+  m.capabilities.length ? Math.min(...m.capabilities.map((c) => c.moq)) : 0;
+const sampleLeadRange = (m: Manufacturer) => {
+  if (!m.capabilities.length) return "—";
+  const v = m.capabilities.map((c) => c.sampleLeadDays);
+  const lo = Math.min(...v),
+    hi = Math.max(...v);
+  return lo === hi ? `${lo}d` : `${lo}–${hi}d`;
+};
+
 function Stars({ rating }: { rating: number }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -69,9 +83,7 @@ function Stars({ rating }: { rating: number }) {
           key={i}
           className={cn(
             "size-3.5",
-            i <= Math.round(rating)
-              ? "fill-warn text-warn"
-              : "text-ink-faint/40",
+            i <= Math.round(rating) ? "fill-warn text-warn" : "text-ink-faint/40",
           )}
         />
       ))}
@@ -130,10 +142,11 @@ function ProfileSheet({
         </div>
       </SheetHeader>
 
-      <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col gap-0">
+      <Tabs defaultValue="capabilities" className="flex min-h-0 flex-1 flex-col gap-0">
         <div className="px-5 pt-4">
           <TabsList className="w-full">
-            <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
+            <TabsTrigger value="capabilities" className="flex-1">Capabilities</TabsTrigger>
+            <TabsTrigger value="contact" className="flex-1">Contact</TabsTrigger>
             <TabsTrigger value="products" className="flex-1">
               Products
               {linked.length > 0 && (
@@ -145,29 +158,52 @@ function ProfileSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <TabsContent value="overview" className="mt-0 space-y-5">
-            <div className="flex flex-wrap gap-1.5">
-              {mf.categories.map((c) => (
-                <Badge key={c} variant="outline">{c}</Badge>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg border bg-surface-2/40 p-4 text-sm">
-              <div><p className="text-xs text-ink-faint">MOQ</p><p>{mf.moq} units</p></div>
-              <div><p className="text-xs text-ink-faint">Lead time</p><p>{mf.leadTime}</p></div>
-              <div><p className="text-xs text-ink-faint">Sample cost</p><p>{mf.sampleCost}</p></div>
-              <div><p className="text-xs text-ink-faint">Payment</p><p>{mf.paymentTerms}</p></div>
+          {/* Capabilities — per-product terms */}
+          <TabsContent value="capabilities" className="mt-0 space-y-5">
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
+                Specializations
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {mf.categories.map((c) => (
+                  <Badge key={c} variant="accent">{c}</Badge>
+                ))}
+              </div>
             </div>
 
             <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-ink-faint">
-                Contact
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
+                Products they make
               </p>
-              <div className="divide-y">
-                <ContactRow icon={Mail} label="Email" value={mf.email} />
-                <ContactRow icon={MessageCircle} label="WhatsApp" value={mf.whatsapp} />
-                <ContactRow icon={Globe} label="Website" value={mf.website} />
+              <div className="overflow-hidden rounded-lg border">
+                <div className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b bg-surface-2/50 px-3 py-2 text-[11px] font-medium text-ink-faint">
+                  <span>Product</span>
+                  <span>MOQ</span>
+                  <span>Sample</span>
+                  <span className="flex items-center gap-1"><Clock className="size-3" />Smpl</span>
+                  <span className="flex items-center gap-1"><Clock className="size-3" />Bulk</span>
+                </div>
+                {mf.capabilities.map((c) => (
+                  <div
+                    key={c.product}
+                    className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b px-3 py-2.5 text-sm last:border-0"
+                  >
+                    <span className="truncate font-medium">{c.product}</span>
+                    <span className="tabular text-ink-soft">{c.moq}</span>
+                    <span className="text-ink-soft">{c.sampleCost}</span>
+                    <span className="tabular text-ink-soft">{c.sampleLeadDays}d</span>
+                    <span className="tabular text-ink-soft">{c.bulkLeadDays}d</span>
+                  </div>
+                ))}
               </div>
+              <p className="mt-2 text-[11px] text-ink-faint">
+                Smpl = days to deliver a sample · Bulk = days to complete a bulk run
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-surface-2/40 p-3 text-sm">
+              <p className="text-xs text-ink-faint">Payment terms</p>
+              <p>{mf.paymentTerms}</p>
             </div>
 
             {mf.files.length > 0 && (
@@ -188,6 +224,17 @@ function ProfileSheet({
             )}
           </TabsContent>
 
+          {/* Contact */}
+          <TabsContent value="contact" className="mt-0">
+            <div className="divide-y">
+              <ContactRow icon={Factory} label="Contact person" value={mf.contactPerson} />
+              <ContactRow icon={Mail} label="Email" value={mf.email} />
+              <ContactRow icon={MessageCircle} label="WhatsApp" value={mf.whatsapp} />
+              <ContactRow icon={Globe} label="Website" value={mf.website} />
+            </div>
+          </TabsContent>
+
+          {/* Linked products */}
           <TabsContent value="products" className="mt-0 space-y-2">
             {linked.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center text-ink-faint">
@@ -209,6 +256,7 @@ function ProfileSheet({
             )}
           </TabsContent>
 
+          {/* Comms */}
           <TabsContent value="comms" className="mt-0 space-y-4">
             <div className="flex gap-2">
               <Input
@@ -262,10 +310,13 @@ const EMPTY_FORM = {
   email: "",
   whatsapp: "",
   website: "",
-  moq: "",
-  leadTime: "",
   paymentTerms: "",
   categories: "",
+  capProduct: "",
+  capMoq: "",
+  capSampleCost: "",
+  capSampleLead: "",
+  capBulkLead: "",
 };
 
 function AddDialog({
@@ -295,10 +346,13 @@ function AddDialog({
         email: "hello@lisbongarments.pt",
         whatsapp: "+351 910 222 333",
         website: url.replace(/^https?:\/\//, "").replace(/\/$/, ""),
-        moq: "120",
-        leadTime: "30–40 days",
         paymentTerms: "50% deposit / 50% on delivery",
         categories: "Cut & Sew, Jersey, Outerwear",
+        capProduct: "T-Shirt",
+        capMoq: "120",
+        capSampleCost: "€55",
+        capSampleLead: "12",
+        capBulkLead: "35",
       });
       setScraping(false);
       toast.success("Scraped manufacturer details", {
@@ -312,6 +366,17 @@ function AddDialog({
       toast.error("Name is required");
       return;
     }
+    const capabilities: Capability[] = form.capProduct
+      ? [
+          {
+            product: form.capProduct,
+            moq: Number(form.capMoq) || 100,
+            sampleCost: form.capSampleCost || "TBD",
+            sampleLeadDays: Number(form.capSampleLead) || 14,
+            bulkLeadDays: Number(form.capBulkLead) || 40,
+          },
+        ]
+      : [];
     onCreate({
       id: `mf-${Date.now()}`,
       name: form.name,
@@ -321,14 +386,12 @@ function AddDialog({
       categories: form.categories
         ? form.categories.split(",").map((c) => c.trim()).filter(Boolean)
         : ["General"],
+      capabilities,
       contactPerson: form.contactPerson || "—",
       whatsapp: form.whatsapp || "—",
       email: form.email || "—",
       website: form.website || "—",
-      moq: Number(form.moq) || 100,
-      leadTime: form.leadTime || "TBD",
       paymentTerms: form.paymentTerms || "TBD",
-      sampleCost: "TBD",
       rating: 0,
       seed: form.name,
       commLog: [],
@@ -340,6 +403,26 @@ function AddDialog({
     toast.success(`Added ${form.name}`);
   };
 
+  // Called as a function (not <Field/>) so inputs aren't remounted on each keystroke.
+  const field = ({
+    label,
+    k,
+    type = "text",
+    placeholder,
+    full,
+  }: {
+    label: string;
+    k: keyof typeof form;
+    type?: string;
+    placeholder?: string;
+    full?: boolean;
+  }) => (
+    <div key={k} className={cn("space-y-1.5", full && "col-span-2")}>
+      <Label>{label}</Label>
+      <Input value={form[k]} onChange={set(k)} type={type} placeholder={placeholder} />
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -350,10 +433,9 @@ function AddDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* URL scrape */}
         <div className="rounded-lg border border-dashed bg-surface-2/40 p-3">
           <Label className="mb-2 text-xs text-ink-soft">
-            <Sparkles className="size-3.5 text-accent" /> Auto-fill from URL
+            <Sparkles className="size-3.5 text-accent-ink" /> Auto-fill from URL
           </Label>
           <div className="flex gap-2">
             <Input
@@ -368,10 +450,7 @@ function AddDialog({
         </div>
 
         <div className="grid max-h-[50vh] grid-cols-2 gap-x-4 gap-y-3 overflow-y-auto pr-1">
-          <div className="col-span-2 space-y-1.5">
-            <Label>Name</Label>
-            <Input value={form.name} onChange={set("name")} placeholder="Factory name" />
-          </div>
+          {field({ label: "Name", k: "name", placeholder: "Factory name", full: true })}
           <div className="space-y-1.5">
             <Label>Country</Label>
             <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
@@ -383,37 +462,22 @@ function AddDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label>Contact person</Label>
-            <Input value={form.contactPerson} onChange={set("contactPerson")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input value={form.email} onChange={set("email")} type="email" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>WhatsApp</Label>
-            <Input value={form.whatsapp} onChange={set("whatsapp")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Website</Label>
-            <Input value={form.website} onChange={set("website")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>MOQ</Label>
-            <Input value={form.moq} onChange={set("moq")} type="number" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Lead time</Label>
-            <Input value={form.leadTime} onChange={set("leadTime")} placeholder="30–40 days" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Payment terms</Label>
-            <Input value={form.paymentTerms} onChange={set("paymentTerms")} />
-          </div>
-          <div className="col-span-2 space-y-1.5">
-            <Label>Categories (comma-separated)</Label>
-            <Input value={form.categories} onChange={set("categories")} placeholder="Knitwear, Cut & Sew" />
+          {field({ label: "Contact person", k: "contactPerson" })}
+          {field({ label: "Email", k: "email", type: "email" })}
+          {field({ label: "WhatsApp", k: "whatsapp" })}
+          {field({ label: "Website", k: "website" })}
+          {field({ label: "Payment terms", k: "paymentTerms" })}
+          {field({ label: "Specializations (comma-separated)", k: "categories", placeholder: "Knitwear, Cut & Sew", full: true })}
+
+          <div className="col-span-2 mt-1 rounded-lg border bg-surface-2/30 p-3">
+            <p className="mb-2 text-xs font-medium text-ink-soft">Primary product (terms vary per product)</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {field({ label: "Product", k: "capProduct", placeholder: "e.g. Hoodie" })}
+              {field({ label: "MOQ", k: "capMoq", type: "number" })}
+              {field({ label: "Sample cost", k: "capSampleCost", placeholder: "$45" })}
+              {field({ label: "Sample lead (days)", k: "capSampleLead", type: "number" })}
+              {field({ label: "Bulk lead (days)", k: "capBulkLead", type: "number" })}
+            </div>
           </div>
         </div>
 
@@ -444,13 +508,9 @@ export default function ManufacturersPage() {
       note,
     };
     setList((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, commLog: [entry, ...m.commLog] } : m,
-      ),
+      prev.map((m) => (m.id === id ? { ...m, commLog: [entry, ...m.commLog] } : m)),
     );
-    setSelected((s) =>
-      s && s.id === id ? { ...s, commLog: [entry, ...s.commLog] } : s,
-    );
+    setSelected((s) => (s && s.id === id ? { ...s, commLog: [entry, ...s.commLog] } : s));
     toast.success("Note logged");
   };
 
@@ -506,12 +566,26 @@ export default function ManufacturersPage() {
               ))}
             </div>
 
+            <p className="mt-2 text-xs text-ink-faint">
+              Makes {m.capabilities.length} product
+              {m.capabilities.length === 1 ? "" : "s"}
+              {m.capabilities.length > 0 && (
+                <> · {m.capabilities.map((c) => c.product).slice(0, 3).join(", ")}</>
+              )}
+            </p>
+
             <Separator className="my-3" />
 
             <div className="flex items-center justify-between text-xs text-ink-soft">
-              <span className="flex items-center gap-1.5">
-                <Factory className="size-3.5 text-ink-faint" />
-                MOQ {m.moq}
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <Factory className="size-3.5 text-ink-faint" />
+                  from {minMoq(m)} MOQ
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="size-3.5 text-ink-faint" />
+                  {sampleLeadRange(m)} samples
+                </span>
               </span>
               <Stars rating={m.rating} />
             </div>

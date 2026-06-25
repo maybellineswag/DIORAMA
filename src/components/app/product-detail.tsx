@@ -103,7 +103,7 @@ export function ProductDetail({ product }: { product: Product }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{mf.name}</p>
                     <p className="text-xs text-ink-faint">
-                      {mf.flag} {mf.country} · {mf.leadTime}
+                      {mf.flag} {mf.country} · {mf.categories[0]}
                     </p>
                   </div>
                   <ArrowRight className="size-4 text-ink-faint" />

@@ -102,21 +102,30 @@ export interface CommLogEntry {
   note: string;
 }
 
+/** What a factory can make, with per-product terms (MOQ/cost/lead vary per item). */
+export interface Capability {
+  product: string;
+  moq: number;
+  sampleCost: string;
+  sampleLeadDays: number;
+  bulkLeadDays: number;
+}
+
 export interface Manufacturer {
   id: string;
   name: string;
   country: string;
   flag: string;
   status: ManufacturerStatus;
+  /** Specializations / techniques they're known for. */
   categories: string[];
+  /** Per-product capabilities — the real, granular terms. */
+  capabilities: Capability[];
   contactPerson: string;
   whatsapp: string;
   email: string;
   website: string;
-  moq: number;
-  leadTime: string;
   paymentTerms: string;
-  sampleCost: string;
   rating: number;
   seed: string;
   commLog: CommLogEntry[];

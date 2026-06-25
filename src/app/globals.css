@@ -205,9 +205,16 @@ body {
 
 /* ── Reusable classes (display type + sorter primitives) ───── */
 @layer components {
+  /* Titles use the clean grotesque (Geist), tight tracking. */
   .display {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  /* Serif reserved for the single expressive moment: the Home greeting. */
+  .serif {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
   }
   .tabular {
     font-variant-numeric: tabular-nums;

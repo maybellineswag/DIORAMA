@@ -36,7 +36,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-dvh w-[240px] shrink-0 flex-col border-r bg-surface-2/40">
       <div className="flex h-14 items-center px-5">
-        <Link href="/dashboard" className="flex items-center">
+        <Link href="/home" className="flex items-center">
           <DioramaWordmark className="h-[18px]" />
         </Link>
       </div>
