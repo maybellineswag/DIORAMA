@@ -15,6 +15,7 @@ export interface AccentPreset {
 
 /** Accent presets for the picker. --accent can be set to any of these. */
 export const ACCENT_PRESETS: AccentPreset[] = [
+  { id: "clay", label: "Clay", value: "#cd8662", foreground: "#1a120c" },
   { id: "blue", label: "Blue", value: "#3b82f6", foreground: "#ffffff" },
   { id: "indigo", label: "Indigo", value: "#6366f1", foreground: "#ffffff" },
   { id: "violet", label: "Violet", value: "#8b5cf6", foreground: "#ffffff" },
@@ -43,7 +44,7 @@ const AppContext = React.createContext<AppState | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [workspaceId, setWorkspaceId] = React.useState(WORKSPACES[0].id);
   const [theme, setThemeState] = React.useState<Theme>("dark");
-  const [accent, setAccentState] = React.useState("blue");
+  const [accent, setAccentState] = React.useState("clay");
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [assistantOpen, setAssistantOpen] = React.useState(false);
 

@@ -14,8 +14,8 @@
 
 /* ── Accent (theme-independent, swappable at runtime) ───────── */
 :root {
-  --accent: #3b82f6; /* clean blue by default — overridden by the picker */
-  --accent-foreground: #ffffff; /* text on a solid accent fill */
+  --accent: #cd8662; /* warm clay by default — overridden by the picker */
+  --accent-foreground: #1a120c; /* text on a solid accent fill */
   --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--foreground));
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --accent-ink: var(--accent); /* accent used as text/icon color */
