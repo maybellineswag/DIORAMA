@@ -1,0 +1,183 @@
+/** Shared domain types for the Diorama prototype (mock data, no backend). */
+
+export type Role = "Owner" | "Admin" | "Editor" | "Viewer";
+
+export interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  handle: string;
+  /** Path to an SVG logo in /public, or undefined to render a monogram. */
+  logo?: string;
+  plan: string;
+}
+
+export type Priority = "Low" | "Medium" | "High" | "Urgent";
+
+/** Sample-tracker status. Grouped into tracks for the swimlane board. */
+export type SampleStatus =
+  // Development
+  | "Concept"
+  | "Mockup"
+  | "Techpack In Progress"
+  | "Techpack In Review"
+  | "Ready for Quote"
+  | "Quote Received"
+  | "Ready for Sampling"
+  // Sample Rounds
+  | "Sample Sent"
+  | "Sample In Review"
+  | "Revision Requested"
+  // Production
+  | "Bulk Order Placed"
+  | "In Production"
+  | "Production Delay"
+  | "Quality Check"
+  | "Ready to Drop"
+  | "Released"
+  // Dead ends
+  | "On Hold"
+  | "Cancelled";
+
+export type Track = "Development" | "Sample Rounds" | "Production" | "Dead ends";
+
+export interface SampleRound {
+  round: number;
+  dateSent: string | null;
+  dateReceived: string | null;
+  photos: number;
+  revisionNotes: string;
+  changedVsPrevious: string;
+}
+
+export interface ActivityEntry {
+  id: string;
+  who: string;
+  action: string;
+  at: string;
+}
+
+export interface FileRef {
+  id: string;
+  name: string;
+  kind: "Techpack" | "Image" | "Pattern" | "3D" | "Doc" | "Spec";
+  size: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  type: string;
+  collection: string;
+  drop: string;
+  priority: Priority;
+  assigneeId: string;
+  manufacturerId: string | null;
+  status: SampleStatus;
+  seed: string;
+  moq: number;
+  pricePerUnit: number;
+  bulkPrice: number;
+  quantityToOrder: number;
+  rounds: SampleRound[];
+  files: FileRef[];
+  activity: ActivityEntry[];
+}
+
+export type ManufacturerStatus =
+  | "Active"
+  | "Sampling"
+  | "Inactive"
+  | "Blacklisted";
+
+export interface CommLogEntry {
+  id: string;
+  date: string;
+  note: string;
+}
+
+export interface Manufacturer {
+  id: string;
+  name: string;
+  country: string;
+  flag: string;
+  status: ManufacturerStatus;
+  categories: string[];
+  contactPerson: string;
+  whatsapp: string;
+  email: string;
+  website: string;
+  moq: number;
+  leadTime: string;
+  paymentTerms: string;
+  sampleCost: string;
+  rating: number;
+  seed: string;
+  commLog: CommLogEntry[];
+  files: FileRef[];
+}
+
+export type AssetCategory =
+  | "Graphics"
+  | "Hardware"
+  | "Notions"
+  | "Pieces"
+  | "Templates"
+  | "Guides";
+
+export interface Asset {
+  id: string;
+  name: string;
+  category: AssetCategory;
+  fileType: string;
+  collection: string;
+  productType: string;
+  season: string;
+  size: string;
+  updated: string;
+  seed: string;
+  /** For Pieces: nested sub-assets. */
+  subAssets?: { label: string; fileType: string }[];
+}
+
+export interface Guide {
+  id: string;
+  title: string;
+  category: string;
+  updated: string;
+  excerpt: string;
+  body: string[];
+}
+
+export interface MoodImage {
+  id: string;
+  seed: string;
+  category: string;
+  tags: string[];
+  ratio: number;
+}
+
+export type TaskStatus =
+  | "New Request"
+  | "In Progress"
+  | "In Review"
+  | "In Progress After Revision"
+  | "Done"
+  | "On Hold";
+
+export interface Task {
+  id: string;
+  name: string;
+  status: TaskStatus;
+  priority: Priority;
+  assigneeId: string;
+  dueDate: string;
+  files: number;
+  tag: string;
+}

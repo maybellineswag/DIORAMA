@@ -1,0 +1,321 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ─────────────────────────────────────────────────────────────
+   DIORAMA — operating system for fashion brands
+   Premium dark mode. Warm neutral base (not pure black),
+   one muted clay accent. Linear/Notion/Figma restraint:
+   tight spacing, hairline borders, no decorative chrome.
+   Tokens drive both shadcn/ui and the embedded AI sorter.
+   ───────────────────────────────────────────────────────────── */
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── DARK (default) ─────────────────────────────────────────── */
+:root,
+.dark {
+  /* Brand surfaces — warm charcoal stack */
+  --paper: #0e0d0c; /* app canvas */
+  --surface: #1a1714; /* cards / panels */
+  --surface-hi: #221e1a; /* elevated (modals, popovers, hovers) */
+  --surface-2: #14120f; /* sunken (kanban lanes, wells) */
+
+  --ink: #f3efe8; /* primary text */
+  --ink-soft: #a7a097; /* secondary text */
+  --ink-faint: #6d665d; /* tertiary / placeholders */
+
+  --line: #2b2723; /* hairline borders */
+  --line-soft: #211d19; /* subtle dividers */
+
+  --clay: #cd8662; /* muted clay accent */
+  --clay-hover: #d9966f;
+  --clay-soft: #2d2018; /* tinted fills on dark */
+  --clay-ink: #e6ac84; /* accent text on dark */
+
+  --danger: #d97066;
+  --danger-soft: #2e1916;
+  --good: #94aa78;
+  --good-soft: #1d2317;
+  --warn: #d6a45c;
+  --warn-soft: #2a2113;
+  --info: #7fa0c4;
+  --info-soft: #161f2a;
+
+  /* shadcn semantic tokens (mapped to brand surfaces) */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-hi);
+  --popover-foreground: var(--ink);
+  --primary: var(--clay);
+  --primary-foreground: #1a120c;
+  --secondary: var(--surface-hi);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-hi);
+  --muted-foreground: var(--ink-soft);
+  --accent: #2a2521;
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --destructive-foreground: #1a120c;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--clay);
+
+  --radius: 0.75rem;
+}
+
+/* ── LIGHT (toggle in Settings) ─────────────────────────────── */
+.light {
+  --paper: #f5f3ee;
+  --surface: #fffdf9;
+  --surface-hi: #ffffff;
+  --surface-2: #ece9e2;
+
+  --ink: #221f1c;
+  --ink-soft: #6c655c;
+  --ink-faint: #a39c92;
+
+  --line: #e5e0d6;
+  --line-soft: #efebe2;
+
+  --clay: #b5613c;
+  --clay-hover: #9f5333;
+  --clay-soft: #f0e2d8;
+  --clay-ink: #7d4226;
+
+  --danger: #b0493d;
+  --danger-soft: #f3ddd9;
+  --good: #5e7150;
+  --good-soft: #e6ebde;
+  --warn: #9a7322;
+  --warn-soft: #f4ead2;
+  --info: #466585;
+  --info-soft: #e2ebf3;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-hi);
+  --popover-foreground: var(--ink);
+  --primary: var(--clay);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-hi);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-soft);
+  --accent: #ece8e0;
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--clay);
+}
+
+/* ── Tailwind token mapping ─────────────────────────────────── */
+@theme inline {
+  /* shadcn */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* brand utilities used by the app + embedded sorter */
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-hi: var(--surface-hi);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-clay: var(--clay);
+  --color-clay-hover: var(--clay-hover);
+  --color-clay-soft: var(--clay-soft);
+  --color-clay-ink: var(--clay-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  color-scheme: dark;
+}
+.light {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+::selection {
+  background: var(--clay-soft);
+  color: var(--clay-ink);
+}
+
+/* Quiet, refined scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: padding-box;
+}
+
+/* ── Reusable classes (display type + sorter primitives) ───── */
+@layer components {
+  .display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Sorter-era primitives, restyled via tokens to match Diorama */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)]
+      px-4 py-2 text-sm font-medium transition-all duration-150 select-none outline-none;
+  }
+  .btn:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 35%, transparent);
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--ink) 88%, var(--clay));
+  }
+  .btn-accent {
+    background: var(--clay);
+    color: var(--primary-foreground);
+  }
+  .btn-accent:hover {
+    background: var(--clay-hover);
+  }
+  .btn-ghost {
+    color: var(--ink-soft);
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--accent);
+    color: var(--ink);
+  }
+  .btn-outline {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .btn-outline:hover {
+    border-color: var(--ink-faint);
+    background: var(--surface-hi);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  .kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5
+      font-mono text-[11px];
+    background: var(--surface-hi);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+
+  /* dotted canvas backdrop for the planning board */
+  .canvas-grid {
+    background-image: radial-gradient(
+      var(--line) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  0% { transform: scale(0.96); opacity: 0; }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-fade-up { animation: fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-pop { animation: pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
