@@ -105,6 +105,7 @@ export default function CollectionsPage() {
   const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const [aiOpen, setAiOpen] = React.useState(true);
+  const [aiExpanded, setAiExpanded] = React.useState(false);
   const [fullscreen, setFullscreen] = React.useState(false);
 
   const pan = React.useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
@@ -284,7 +285,11 @@ export default function CollectionsPage() {
                       className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-elevated cursor-pointer"
                     >
                       <span className="size-8 shrink-0 overflow-hidden rounded-md border">
-                        <Thumb seed={p.seed} />
+                        {p.image ? (
+                          <img src={p.image} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Thumb seed={p.seed} />
+                        )}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm">{p.name}</span>
@@ -449,7 +454,11 @@ export default function CollectionsPage() {
                   style={{ left: it.x, top: it.y }}
                 >
                   <div className="aspect-square overflow-hidden">
-                    <Thumb seed={prod.seed} />
+                    {prod.image ? (
+                      <img src={prod.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Thumb seed={prod.seed} />
+                    )}
                   </div>
                   <div className="flex items-center gap-1 p-2.5">
                     <div className="min-w-0 flex-1">
@@ -473,7 +482,21 @@ export default function CollectionsPage() {
 
       {/* AI builder */}
       {aiOpen && (
-        <aside className="hidden w-80 shrink-0 flex-col border-l bg-surface-2/30 xl:flex">
+        <>
+          {aiExpanded && (
+            <div
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+              onClick={() => setAiExpanded(false)}
+            />
+          )}
+          <aside
+            className={cn(
+              "flex-col border-l bg-surface-2/30",
+              aiExpanded
+                ? "fixed right-0 top-0 z-50 flex h-dvh w-[480px] max-w-[92vw] bg-card shadow-2xl shadow-black/50"
+                : "hidden w-80 shrink-0 xl:flex",
+            )}
+          >
           <div className="flex items-center gap-2.5 border-b px-5 py-4">
             <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft">
               <Sparkles className="size-4 text-accent-ink" />
@@ -483,7 +506,17 @@ export default function CollectionsPage() {
               <p className="text-xs text-ink-faint leading-tight">Describe the drop you want</p>
             </div>
             <button
-              onClick={() => setAiOpen(false)}
+              onClick={() => setAiExpanded((v) => !v)}
+              className="text-ink-faint transition-colors hover:text-foreground cursor-pointer"
+              title={aiExpanded ? "Shrink panel" : "Expand panel"}
+            >
+              {aiExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </button>
+            <button
+              onClick={() => {
+                setAiOpen(false);
+                setAiExpanded(false);
+              }}
               className="text-ink-faint transition-colors hover:text-foreground cursor-pointer"
               title="Hide panel"
             >
@@ -594,7 +627,8 @@ export default function CollectionsPage() {
               </p>
             )}
           </div>
-        </aside>
+          </aside>
+        </>
       )}
     </div>
   );

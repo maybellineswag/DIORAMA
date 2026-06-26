@@ -46,7 +46,7 @@ export function Sidebar() {
         href={item.href}
         title={!expanded ? item.label : undefined}
         className={cn(
-          "group flex items-center rounded-md py-2 text-sm font-medium transition-colors",
+          "group flex h-9 items-center rounded-md text-sm font-medium transition-colors",
           expanded ? "gap-2.5 px-2.5" : "justify-center px-0",
           active
             ? "bg-elevated text-foreground"
@@ -65,21 +65,14 @@ export function Sidebar() {
   };
 
   return (
-    <div
+    <aside
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       className={cn(
-        "relative h-dvh shrink-0 transition-[width] duration-200 ease-out",
-        sidebarCollapsed ? "w-16" : "w-60",
+        "flex h-dvh shrink-0 flex-col border-r bg-surface-2 transition-[width] duration-200 ease-out",
+        expanded ? "w-60" : "w-16",
       )}
     >
-      <aside
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        className={cn(
-          "absolute inset-y-0 left-0 z-30 flex h-dvh flex-col border-r bg-surface-2 transition-[width] duration-200 ease-out",
-          expanded ? "w-60" : "w-16",
-          sidebarCollapsed && hover && "shadow-2xl shadow-black/50",
-        )}
-      >
         {/* Brand */}
         <div className={cn("flex h-14 items-center", expanded ? "px-5" : "justify-center")}>
           <Link href="/home" className="flex items-center">
@@ -152,7 +145,6 @@ export function Sidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </aside>
-    </div>
+    </aside>
   );
 }

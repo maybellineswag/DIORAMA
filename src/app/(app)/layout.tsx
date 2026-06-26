@@ -10,7 +10,7 @@ export default function AppLayout({
 }) {
   return (
     <div className="flex h-dvh overflow-hidden bg-paper">
-      <div className="hidden lg:block">
+      <div className="hidden shrink-0 lg:block">
         <Sidebar />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">

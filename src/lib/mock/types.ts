@@ -7,6 +7,8 @@ export interface Member {
   name: string;
   email: string;
   role: Role;
+  /** Optional profile photo; falls back to a colored initial when absent. */
+  avatar?: string;
 }
 
 export interface Workspace {
@@ -80,6 +82,8 @@ export interface Product {
   manufacturerId: string | null;
   status: SampleStatus;
   seed: string;
+  /** Real product image in /public/products (falls back to generative thumb). */
+  image?: string;
   moq: number;
   pricePerUnit: number;
   bulkPrice: number;
@@ -172,6 +176,7 @@ export interface Guide {
 export interface MoodImage {
   id: string;
   seed: string;
+  src: string;
   category: string;
   tags: string[];
   ratio: number;

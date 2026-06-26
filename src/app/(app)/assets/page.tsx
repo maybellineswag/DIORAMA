@@ -10,6 +10,7 @@ import {
   Folder,
   BookOpen,
   Boxes,
+  Maximize2,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -33,6 +34,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ASSETS, GUIDES, COLLECTIONS, SEASONS, PRODUCT_TYPES } from "@/lib/mock/data";
 import type { Asset, AssetCategory, Guide } from "@/lib/mock/types";
@@ -49,6 +51,7 @@ const CATEGORIES: ("All" | AssetCategory)[] = [
 
 function AssetPreview({ asset }: { asset: Asset }) {
   const is3D = asset.category === "Hardware";
+  const [full, setFull] = React.useState(false);
   return (
     <>
       <SheetHeader>
@@ -62,14 +65,33 @@ function AssetPreview({ asset }: { asset: Asset }) {
           {is3D ? (
             <>
               <ThreeViewer seed={asset.seed} className="size-full" />
+              <button
+                onClick={() => setFull(true)}
+                className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-md bg-paper/80 text-ink-soft backdrop-blur transition-colors hover:text-foreground cursor-pointer"
+                title="Fullscreen"
+              >
+                <Maximize2 className="size-3.5" />
+              </button>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-paper/70 py-2 text-xs text-ink-soft backdrop-blur">
-                <Box className="size-3.5" /> Live 3D · drag to rotate
+                <Box className="size-3.5" /> Live 3D · drag to rotate · scroll to zoom
               </div>
             </>
           ) : (
             <Thumb seed={asset.seed} />
           )}
         </div>
+
+        {is3D && (
+          <Dialog open={full} onOpenChange={setFull}>
+            <DialogContent className="h-[85vh] max-w-5xl p-0 overflow-hidden">
+              <DialogTitle className="sr-only">{asset.name} — 3D viewer</DialogTitle>
+              <ThreeViewer seed={asset.seed} className="size-full" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-paper/60 py-2.5 text-xs text-ink-soft backdrop-blur">
+                <Box className="size-3.5" /> {asset.name} · drag to rotate · scroll to zoom
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-1.5">
           <Badge variant="accent">{asset.category}</Badge>

@@ -55,12 +55,7 @@ export default function HomePage() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-6 lg:p-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <Greeting name="Sasha" />
-          <p className="text-sm text-ink-soft">
-            Here&apos;s what&apos;s moving across Olivine today.
-          </p>
-        </div>
+        <Greeting name="Grisha" />
         <Button size="sm" asChild>
           <Link href="/samples">
             <Plus className="size-4" /> New product
@@ -147,7 +142,11 @@ export default function HomePage() {
                   >
                     <span className="tabular w-4 text-xs text-ink-faint">{i + 1}</span>
                     <div className="size-9 shrink-0 overflow-hidden rounded-md border">
-                      <Thumb seed={p.name} />
+                      {p.image ? (
+                        <img src={p.image} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Thumb seed={p.name} />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm">{p.name}</p>

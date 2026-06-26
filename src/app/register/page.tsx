@@ -41,7 +41,7 @@ export default function RegisterPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="name">Your name</Label>
-            <Input id="name" value={form.name} onChange={set("name")} placeholder="Sasha Okafor" />
+            <Input id="name" value={form.name} onChange={set("name")} placeholder="Grisha Obolenskiy" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="brand">Brand name</Label>

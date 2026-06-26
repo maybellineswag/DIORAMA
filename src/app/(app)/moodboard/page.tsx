@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { MoodSorter } from "@/components/app/mood-sorter";
-import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -178,9 +177,14 @@ export default function MoodboardPage() {
             <div
               key={im.id}
               className="group relative break-inside-avoid overflow-hidden rounded-xl border transition-all hover:border-ink-faint/40 hover:shadow-md"
-              style={{ aspectRatio: String(im.ratio) }}
             >
-              <Thumb seed={im.seed} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={im.src}
+                alt={im.tags.join(", ")}
+                loading="lazy"
+                className="block w-full"
+              />
               <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-1 bg-black/55 p-2 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
                 {im.tags.map((t) => (
                   <Badge key={t} variant="accent" className="bg-accent-soft/90">

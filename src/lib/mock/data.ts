@@ -21,10 +21,10 @@ export const WORKSPACES: Workspace[] = [
 export const CURRENT_USER_ID = "m-sasha";
 
 export const MEMBERS: Member[] = [
-  { id: "m-sasha", name: "Sasha Okafor", email: "herfreckleslooklikecandybars@gmail.com", role: "Owner" },
-  { id: "m-mara", name: "Mara Lindqvist", email: "mara@olivine.studio", role: "Admin" },
-  { id: "m-devon", name: "Devon Reyes", email: "devon@olivine.studio", role: "Editor" },
-  { id: "m-yuki", name: "Yuki Tanaka", email: "yuki@olivine.studio", role: "Editor" },
+  { id: "m-sasha", name: "Grisha Obolenskiy", email: "herfreckleslooklikecandybars@gmail.com", role: "Owner" },
+  { id: "m-mara", name: "Mara Lindqvist", email: "mara@olivine.studio", role: "Admin", avatar: "/moodboard/68CF33A5-7EAB-4D14-B871-F46D49F8778D_1_105_c.jpeg" },
+  { id: "m-devon", name: "Devon Reyes", email: "devon@olivine.studio", role: "Editor", avatar: "/moodboard/A2C28C15-AB04-4EEC-B7DC-BBB4E610C7C4_1_105_c.jpeg" },
+  { id: "m-yuki", name: "Yuki Tanaka", email: "yuki@olivine.studio", role: "Editor", avatar: "/moodboard/C04A5600-2708-4BB8-A8BE-3B8E7FB0D484_1_105_c.jpeg" },
   { id: "m-priya", name: "Priya Nair", email: "priya@olivine.studio", role: "Viewer" },
 ];
 
@@ -280,6 +280,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-hangzhou",
     status: "Sample In Review",
     seed: "hoodie-reliquary",
+    image: "/products/hoodie.webp",
     moq: 100,
     pricePerUnit: 28.5,
     bulkPrice: 22.0,
@@ -310,7 +311,7 @@ export const PRODUCTS: Product[] = [
     activity: [
       A("a1", "Mara Lindqvist", "moved to Sample In Review", "2026-06-14"),
       A("a2", "Hangzhou Silk Road", "delivered Round 2 sample", "2026-06-14"),
-      A("a3", "Sasha Okafor", "approved 420gsm loopback", "2026-05-22"),
+      A("a3", "Grisha Obolenskiy", "approved 420gsm loopback", "2026-05-22"),
     ],
   },
   {
@@ -324,6 +325,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-porto",
     status: "Ready to Drop",
     seed: "tee-saltwater",
+    image: "/products/tee.webp",
     moq: 150,
     pricePerUnit: 9.8,
     bulkPrice: 7.2,
@@ -366,6 +368,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-jaipur",
     status: "Revision Requested",
     seed: "scarf-ember",
+    image: "/products/scarf.webp",
     moq: 80,
     pricePerUnit: 14.0,
     bulkPrice: 10.5,
@@ -400,6 +403,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-coimbra",
     status: "Techpack In Review",
     seed: "cargo-reliquary",
+    image: "/products/cargopants.webp",
     moq: 200,
     pricePerUnit: 32.0,
     bulkPrice: 25.5,
@@ -423,6 +427,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-istanbul",
     status: "Sample Sent",
     seed: "sweater-lichen",
+    image: "/products/sweater.webp",
     moq: 120,
     pricePerUnit: 26.0,
     bulkPrice: 19.5,
@@ -451,6 +456,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-hangzhou",
     status: "In Production",
     seed: "bomber-nocturne",
+    image: "/products/bomberjacket.webp",
     moq: 100,
     pricePerUnit: 41.0,
     bulkPrice: 33.0,
@@ -476,6 +482,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-hangzhou",
     status: "Released",
     seed: "cap-saltwater",
+    image: "/products/hat.webp",
     moq: 144,
     pricePerUnit: 6.5,
     bulkPrice: 4.8,
@@ -497,6 +504,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-jaipur",
     status: "Quality Check",
     seed: "tote-core",
+    image: "/products/canvastote.webp",
     moq: 100,
     pricePerUnit: 5.2,
     bulkPrice: 3.9,
@@ -519,7 +527,8 @@ export const PRODUCTS: Product[] = [
     manufacturerId: null,
     status: "Concept",
     seed: "denim-saltwater",
-    hasMockup: false,
+    hasMockup: true,
+    image: "/products/denimjacket.webp",
     moq: 150,
     pricePerUnit: 0,
     bulkPrice: 0,
@@ -539,6 +548,7 @@ export const PRODUCTS: Product[] = [
     manufacturerId: "mf-coimbra",
     status: "Production Delay",
     seed: "sneaker-reliquary",
+    image: "/products/sneakers.webp",
     moq: 300,
     pricePerUnit: 38.0,
     bulkPrice: 29.0,
@@ -564,7 +574,8 @@ export const PRODUCTS: Product[] = [
     manufacturerId: null,
     status: "On Hold",
     seed: "vest-liquid",
-    hasMockup: false,
+    hasMockup: true,
+    image: "/products/vest.webp",
     moq: 50,
     pricePerUnit: 0,
     bulkPrice: 0,
@@ -709,13 +720,43 @@ const MOOD_TAG_BANK: Record<string, string[]> = {
   Runway: ["AW25", "draped", "layered", "monochrome"],
 };
 
-export const MOOD_IMAGES: MoodImage[] = Array.from({ length: 28 }).map((_, i) => {
+/** Real moodboard photos dropped into /public/moodboard. */
+export const MOODBOARD_PHOTOS: string[] = [
+  "/moodboard/001263D7-897F-4CED-9984-4E3787C555DE_1_105_c.jpeg",
+  "/moodboard/014FA8A9-FC13-4DB6-89FB-67E4F2726358_1_105_c.jpeg",
+  "/moodboard/040F73D7-7321-49DE-B074-95C4C2F6CA3F_1_105_c.jpeg",
+  "/moodboard/2D3E5A27-F623-49CA-ADB1-6072E7042DD7_1_105_c.jpeg",
+  "/moodboard/438189E8-F3FD-44B5-A7AB-354F21D0C045_1_105_c.jpeg",
+  "/moodboard/5E9A45F1-26D9-46CD-8C14-6D9E764170C8_1_105_c.jpeg",
+  "/moodboard/68CF33A5-7EAB-4D14-B871-F46D49F8778D_1_105_c.jpeg",
+  "/moodboard/749F618C-FBB6-48FC-96A4-C19C16E962D5_1_105_c.jpeg",
+  "/moodboard/74D09DFE-9E2E-4838-8AF1-B8119BEE56D2_1_105_c.jpeg",
+  "/moodboard/770F9DD3-C57B-471C-8D08-DFF423400884_1_105_c.jpeg",
+  "/moodboard/7AA2CD30-6925-47DE-9422-6B963CACE61C_4_5005_c.jpeg",
+  "/moodboard/82AF1182-600A-4978-8C0F-E0D2B24CA9F1_1_105_c.jpeg",
+  "/moodboard/83B787C1-EA3A-4FE4-878E-3BA72437166C_4_5005_c.jpeg",
+  "/moodboard/A2C28C15-AB04-4EEC-B7DC-BBB4E610C7C4_1_105_c.jpeg",
+  "/moodboard/BC799090-7005-4ED0-945D-21CEC2BB8936_1_105_c.jpeg",
+  "/moodboard/C04A5600-2708-4BB8-A8BE-3B8E7FB0D484_1_105_c.jpeg",
+  "/moodboard/C51D4E7A-2A53-4D6C-8E51-FD06D103289A_1_105_c.jpeg",
+  "/moodboard/CA9FD6AE-666A-4BD1-A0D9-EB03BC824167_1_105_c.jpeg",
+  "/moodboard/D696115E-7898-4396-BF5F-81FC65F9A00F_1_105_c.jpeg",
+  "/moodboard/D8605F3C-8806-4ED0-BDB7-F3989F27BC34_1_105_c.jpeg",
+  "/moodboard/E1601048-4AA2-4E1D-B56A-4E3CA18153BD_1_105_c.jpeg",
+  "/moodboard/E42F536A-12BF-4E08-BBD0-85D5CA83A6E2_4_5005_c.jpeg",
+  "/moodboard/E9BB5030-EB63-46A1-A2E7-9A7AB2929FED_4_5005_c.jpeg",
+  "/moodboard/F4DE248E-9AD5-4A74-B87E-DF03C42D1EEC_1_105_c.jpeg",
+  "/moodboard/FA5061CE-5932-47B9-A34A-BAFF386564F7_1_105_c.jpeg",
+];
+
+export const MOOD_IMAGES: MoodImage[] = MOODBOARD_PHOTOS.map((src, i) => {
   const cats = MOOD_CATEGORIES.slice(1);
   const category = cats[i % cats.length];
   const bank = MOOD_TAG_BANK[category];
   return {
     id: `mood-${i}`,
     seed: `mood-${category}-${i}`,
+    src,
     category,
     tags: [bank[i % bank.length], bank[(i + 1) % bank.length]],
     ratio: [0.75, 1, 1.25, 1.4][i % 4],
@@ -774,7 +815,7 @@ export const RECENT_ACTIVITY: ActivityItem[] = [
   { id: "ra2", who: "Yuki Tanaka", action: "requested Round 2 on Ember Scarf", at: "5h ago", context: "Sample Tracker" },
   { id: "ra3", who: "Devon Reyes", action: "uploaded 6 references to Moodboard", at: "Yesterday", context: "Moodboard" },
   { id: "ra4", who: "Priya Nair", action: "started QC on Core Canvas Tote", at: "Yesterday", context: "Sample Tracker" },
-  { id: "ra5", who: "Sasha Okafor", action: "approved bomber bulk PO — 220 units", at: "3 days ago", context: "Tasks" },
+  { id: "ra5", who: "Grisha Obolenskiy", action: "approved bomber bulk PO — 220 units", at: "3 days ago", context: "Tasks" },
 ];
 
 export interface Deadline {
@@ -802,10 +843,10 @@ export const SHOPIFY_STATS = {
   aov: 78.8,
   aovDelta: 3.2,
   topProducts: [
-    { name: "Saltwater Boxy Tee", units: 184, revenue: 8832 },
-    { name: "Saltwater 6-Panel Cap", units: 142, revenue: 4970 },
-    { name: "Core Canvas Tote", units: 121, revenue: 3025 },
-    { name: "Reliquary Hoodie (pre-order)", units: 88, revenue: 7920 },
+    { name: "Saltwater Boxy Tee", units: 184, revenue: 8832, image: "/products/tee.webp" },
+    { name: "Saltwater 6-Panel Cap", units: 142, revenue: 4970, image: "/products/hat.webp" },
+    { name: "Core Canvas Tote", units: 121, revenue: 3025, image: "/products/canvastote.webp" },
+    { name: "Reliquary Hoodie (pre-order)", units: 88, revenue: 7920, image: "/products/hoodie.webp" },
   ],
   inventoryAlerts: [
     { name: "Saltwater Boxy Tee — M", level: "Low", units: 12 },

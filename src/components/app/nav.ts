@@ -19,7 +19,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { label: "Home", href: "/home", icon: House, hint: "Overview" },
-  { label: "Sample Tracker", href: "/samples", icon: SquareKanban, hint: "Products by status" },
+  { label: "Product Status", href: "/samples", icon: SquareKanban, hint: "Full product lifecycle" },
   { label: "Asset Library", href: "/assets", icon: Library, hint: "Files & guides" },
   { label: "Moodboard", href: "/moodboard", icon: Images, hint: "References & AI sort" },
   { label: "Manufacturers", href: "/manufacturers", icon: Factory, hint: "Factory directory" },

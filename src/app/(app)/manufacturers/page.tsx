@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -75,6 +76,15 @@ const sampleLeadRange = (m: Manufacturer) => {
   return lo === hi ? `${lo}d` : `${lo}–${hi}d`;
 };
 
+// Estimated full-order cost = (avg unit price + per-unit shipping) × MOQ.
+function shipmentTotal(c: Capability) {
+  const cur = c.avgUnitPrice.includes("€") ? "€" : "$";
+  const unit = parseFloat(c.avgUnitPrice.replace(/[^0-9.]/g, "")) || 0;
+  const ship = parseFloat(c.shippingEst.replace(/[^0-9.]/g, "")) || 0;
+  const total = (unit + ship) * c.moq;
+  return `${cur}${total.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 function Stars({ rating }: { rating: number }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -100,6 +110,7 @@ function ProfileSheet({
   onAddNote: (id: string, note: string) => void;
 }) {
   const [note, setNote] = React.useState("");
+  const [bulkView, setBulkView] = React.useState(false);
   const linked = PRODUCTS.filter((p) => p.manufacturerId === mf.id);
 
   const ContactRow = ({
@@ -172,18 +183,33 @@ function ProfileSheet({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
-                Products they make
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+                  Products they make
+                </p>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  Full order
+                  <Switch checked={bulkView} onCheckedChange={setBulkView} />
+                </label>
+              </div>
               <div className="space-y-2">
                 {mf.capabilities.map((c) => (
                   <div key={c.product} className="rounded-lg border bg-surface-2/40 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{c.product}</span>
-                      <span className="text-sm">
-                        {c.avgUnitPrice}{" "}
-                        <span className="text-xs text-ink-faint">/ unit avg</span>
-                      </span>
+                      {bulkView ? (
+                        <span className="text-sm font-medium text-accent-ink">
+                          {shipmentTotal(c)}{" "}
+                          <span className="text-xs font-normal text-ink-faint">
+                            / {c.moq} units
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-sm">
+                          {c.avgUnitPrice}{" "}
+                          <span className="text-xs text-ink-faint">/ unit avg</span>
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2.5 grid grid-cols-3 gap-x-2 gap-y-2 text-xs">
                       {[
@@ -252,7 +278,11 @@ function ProfileSheet({
               linked.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2.5">
                   <span className="size-10 shrink-0 overflow-hidden rounded-md border">
-                    <Thumb seed={p.seed} />
+                    {p.image ? (
+                      <img src={p.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Thumb seed={p.seed} />
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{p.name}</p>

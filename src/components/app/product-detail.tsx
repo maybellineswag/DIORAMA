@@ -12,7 +12,7 @@ import {
 
 import type { Product } from "@/lib/mock/types";
 import { manufacturer } from "@/lib/mock/data";
-import { MemberAvatar, PriorityBadge, StatusBadge } from "@/components/app/bits";
+import { PriorityBadge, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -45,7 +45,11 @@ export function ProductDetail({ product }: { product: Product }) {
       <SheetHeader>
         <div className="flex items-start gap-4">
           <div className="size-16 shrink-0 overflow-hidden rounded-lg border">
-            <Thumb seed={product.seed} />
+            {product.image ? (
+              <img src={product.image} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Thumb seed={product.seed} />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <SheetTitle className="text-lg">{product.name}</SheetTitle>
@@ -83,10 +87,8 @@ export function ProductDetail({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-x-4 gap-y-5">
               <Field label="Drop">{product.drop}</Field>
               <Field label="Collection">{product.collection}</Field>
-              <Field label="Assignee">
-                <MemberAvatar id={product.assigneeId} showName />
-              </Field>
               <Field label="Type">{product.type}</Field>
+              <Field label="Priority">{product.priority}</Field>
             </div>
 
             <Separator />

@@ -18,12 +18,12 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { ProductDetail } from "@/components/app/product-detail";
 import { ViewSwitcher } from "@/components/app/view-switcher";
-import { MemberAvatar, PriorityDot, StatusBadge } from "@/components/app/bits";
+import { PriorityDot, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer, member } from "@/lib/mock/data";
+import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer } from "@/lib/mock/data";
 import type { Product, SampleStatus, Track, Priority } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +105,11 @@ function ProductCard({
       <div className="flex gap-2.5">
         {hasMockup(product) ? (
           <div className="size-14 shrink-0 overflow-hidden rounded-md border">
-            <Thumb seed={product.seed} />
+            {product.image ? (
+              <img src={product.image} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Thumb seed={product.seed} />
+            )}
           </div>
         ) : (
           <ConceptTile className="size-14 shrink-0" />
@@ -124,9 +128,9 @@ function ProductCard({
         <Badge variant="outline" className="max-w-[120px] truncate">
           {product.collection.split(" — ")[0]}
         </Badge>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <PriorityDot priority={product.priority} />
-          <MemberAvatar id={product.assigneeId} className="size-5" />
+          <span className="text-[11px] text-ink-faint">{product.priority}</span>
         </div>
       </div>
       {mf && (
@@ -140,7 +144,7 @@ function ProductCard({
 }
 
 // ── Table view ───────────────────────────────────────────────
-type SortKey = "name" | "type" | "status" | "priority" | "assignee";
+type SortKey = "name" | "type" | "status" | "priority";
 
 function TableView({
   products,
@@ -160,9 +164,6 @@ function TableView({
     if (sort.key === "priority") {
       av = PRIORITY_RANK[a.priority];
       bv = PRIORITY_RANK[b.priority];
-    } else if (sort.key === "assignee") {
-      av = member(a.assigneeId)?.name ?? "";
-      bv = member(b.assigneeId)?.name ?? "";
     } else {
       av = a[sort.key];
       bv = b[sort.key];
@@ -197,13 +198,12 @@ function TableView({
 
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <div className="min-w-[760px]">
-        <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr_1fr_1fr] gap-4 border-b bg-surface-2/40 px-4 py-2.5">
+      <div className="min-w-[680px]">
+        <div className="grid grid-cols-[2fr_1fr_1.1fr_1fr_1.3fr] items-center gap-4 border-b bg-surface-2/40 px-4 py-2.5">
           <Th k="name" label="Product" />
           <Th k="type" label="Type" />
           <Th k="status" label="Status" />
           <Th k="priority" label="Priority" />
-          <Th k="assignee" label="Assignee" />
           <span className="text-xs font-medium text-ink-faint">Manufacturer</span>
         </div>
         {sorted.map((p) => {
@@ -212,12 +212,16 @@ function TableView({
             <button
               key={p.id}
               onClick={() => onOpen(p)}
-              className="grid w-full grid-cols-[1.6fr_0.8fr_1fr_0.8fr_1fr_1fr] items-center gap-4 border-b px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
+              className="grid h-12 w-full grid-cols-[2fr_1fr_1.1fr_1fr_1.3fr] items-center gap-4 border-b px-4 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
             >
-              <span className="flex items-center gap-2.5">
+              <span className="flex min-w-0 items-center gap-2.5">
                 {hasMockup(p) ? (
                   <span className="size-8 shrink-0 overflow-hidden rounded-md border">
-                    <Thumb seed={p.seed} />
+                    {p.image ? (
+                      <img src={p.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Thumb seed={p.seed} />
+                    )}
                   </span>
                 ) : (
                   <ConceptTile className="size-8 shrink-0" />
@@ -225,14 +229,13 @@ function TableView({
                 <span className="truncate text-sm font-medium">{p.name}</span>
               </span>
               <span className="truncate text-xs text-ink-soft">{p.type}</span>
-              <span className="flex items-center gap-1.5 text-xs text-ink-soft">
+              <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-soft">
                 <span className={cn("size-2 shrink-0 rounded-full", TONE_DOT[STATUS_TONE[p.status]])} />
                 <span className="truncate">{p.status}</span>
               </span>
               <span className="flex items-center gap-1.5 text-xs">
                 <PriorityDot priority={p.priority} /> {p.priority}
               </span>
-              <MemberAvatar id={p.assigneeId} showName />
               <span className="truncate text-xs text-ink-soft">
                 {mf ? mf.name : "—"}
               </span>
@@ -258,7 +261,11 @@ function GalleryView({
         <button key={p.id} onClick={() => onOpen(p)} className="group text-left cursor-pointer">
           <div className="relative aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
             {hasMockup(p) ? (
-              <Thumb seed={p.seed} />
+              p.image ? (
+                <img src={p.image} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Thumb seed={p.seed} />
+              )
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-1 bg-surface-2 text-ink-faint">
                 <Lightbulb className="size-5" />
@@ -274,9 +281,8 @@ function GalleryView({
               <p className="truncate text-sm font-medium">{p.name}</p>
               <p className="text-xs text-ink-faint">{p.type}</p>
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5">
+            <div className="mt-0.5">
               <PriorityDot priority={p.priority} />
-              <MemberAvatar id={p.assigneeId} className="size-5" />
             </div>
           </div>
         </button>
@@ -325,8 +331,8 @@ export default function SamplesPage() {
     <div className="flex h-full flex-col">
       <div className="space-y-4 p-6 pb-4 lg:px-8">
         <PageHeader
-          title="Sample Tracker"
-          description="Every product, from concept to drop."
+          title="Product Status"
+          description="Every product's full lifecycle — from concept to drop."
           actions={
             <div className="flex items-center gap-2">
               <ViewSwitcher

@@ -133,9 +133,16 @@ export function ThreeViewer({
       velX = 0;
       velY = 0.004;
     };
+    // Scroll to zoom (dolly the camera, clamped).
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      camera.position.z = Math.min(7, Math.max(1.8, camera.position.z + e.deltaY * 0.0025));
+    };
+
     const el = renderer.domElement;
     el.style.cursor = "grab";
     el.addEventListener("pointerdown", onDown);
+    el.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
 
@@ -165,6 +172,7 @@ export function ThreeViewer({
       cancelAnimationFrame(raf);
       ro.disconnect();
       el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("wheel", onWheel);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       geometry.dispose();

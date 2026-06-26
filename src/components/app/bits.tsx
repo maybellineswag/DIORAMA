@@ -1,7 +1,7 @@
 import { member } from "@/lib/mock/data";
 import { STATUS_TONE } from "@/lib/mock/data";
 import type { Priority, SampleStatus } from "@/lib/mock/types";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export function MemberAvatar({
   if (!m) return null;
   const avatar = (
     <Avatar className={cn("size-6", className)}>
+      {m.avatar && <AvatarImage src={m.avatar} alt={m.name} />}
       <AvatarFallback
         className="text-[11px] font-medium text-white"
         style={{ backgroundColor: colorFor(m.id) }}
