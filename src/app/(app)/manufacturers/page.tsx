@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Plus,
   Star,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   FileText,
   Clock,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -276,9 +278,14 @@ function ProfileSheet({
               </div>
             ) : (
               linked.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2.5">
+                <Link
+                  key={p.id}
+                  href={`/samples?product=${p.id}`}
+                  className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2.5 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
+                >
                   <span className="size-10 shrink-0 overflow-hidden rounded-md border">
                     {p.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.image} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <Thumb seed={p.seed} />
@@ -288,7 +295,8 @@ function ProfileSheet({
                     <p className="truncate text-sm font-medium">{p.name}</p>
                     <p className="text-xs text-ink-faint">{p.status}</p>
                   </div>
-                </div>
+                  <ArrowRight className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+                </Link>
               ))
             )}
           </TabsContent>
@@ -539,6 +547,18 @@ export default function ManufacturersPage() {
   const filtered = list.filter(
     (m) => statusFilter === "all" || m.status === statusFilter,
   );
+
+  // Deep link: /manufacturers?m=ID opens that profile.
+  React.useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("m");
+    if (!id) return;
+    const m = list.find((x) => x.id === id);
+    if (m) {
+      setSelected(m);
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addNote = (id: string, note: string) => {
     const entry: CommLogEntry = {

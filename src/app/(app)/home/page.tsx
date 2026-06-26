@@ -172,10 +172,12 @@ export default function HomePage() {
                 <span className="text-sm font-medium">Top products</span>
               </div>
               <div className="divide-y">
-                {SHOPIFY_STATS.topProducts.map((p, i) => (
+                {SHOPIFY_STATS.topProducts.map((p, i) => {
+                  const pid = PRODUCTS.find((x) => x.name === p.name)?.id;
+                  return (
                   <Link
                     key={p.name}
-                    href="/samples"
+                    href={pid ? `/samples?product=${pid}` : "/samples"}
                     className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-elevated/50"
                   >
                     <span className="tabular w-4 text-xs text-ink-faint">{i + 1}</span>
@@ -194,7 +196,8 @@ export default function HomePage() {
                       {money(p.revenue)}
                     </span>
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             </Card>
 

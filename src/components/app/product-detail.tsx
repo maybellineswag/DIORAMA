@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import Link from "next/link";
 import {
   Calendar,
   ImageIcon,
@@ -12,9 +14,12 @@ import {
 
 import type { Product } from "@/lib/mock/types";
 import { manufacturer } from "@/lib/mock/data";
+import { computeCosting, defaultInputs } from "@/lib/costing";
+import { cn } from "@/lib/utils";
 import { PriorityBadge, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -33,6 +38,112 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1">
       <p className="text-xs text-ink-faint">{label}</p>
       <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+const cur = (n: number) =>
+  `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+
+function CostingTab({ product }: { product: Product }) {
+  const [inp, setInp] = React.useState(() => defaultInputs(product));
+  const c = computeCosting(product, inp);
+
+  if (product.bulkPrice <= 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+        <p className="text-sm text-ink-soft">No costing yet</p>
+        <p className="text-xs text-ink-faint">
+          Costing unlocks once a bulk price is set (after quoting).
+        </p>
+      </div>
+    );
+  }
+
+  const num = (
+    label: string,
+    value: number,
+    onChange: (v: number) => void,
+    prefix?: string,
+    suffix?: string,
+  ) => (
+    <div className="space-y-1.5">
+      <label className="text-xs text-ink-faint">{label}</label>
+      <div className="relative">
+        {prefix && (
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">
+            {prefix}
+          </span>
+        )}
+        <Input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value) || 0)}
+          className={prefix ? "pl-6" : suffix ? "pr-7" : ""}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">
+            {suffix}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+        <Field label="Production / unit">{cur(c.production)}</Field>
+        {num("Freight / unit", inp.freight, (v) => setInp({ ...inp, freight: v }), "$")}
+        {num("Duties", inp.dutiesPct, (v) => setInp({ ...inp, dutiesPct: v }), undefined, "%")}
+        {num("Retail price", inp.retail, (v) => setInp({ ...inp, retail: v }), "$")}
+      </div>
+
+      <div className="space-y-2 rounded-lg border bg-surface-2/40 p-4 text-sm">
+        <div className="flex items-center justify-between text-ink-soft">
+          <span>Production</span>
+          <span className="tabular">{cur(c.production)}</span>
+        </div>
+        <div className="flex items-center justify-between text-ink-soft">
+          <span>+ Freight</span>
+          <span className="tabular">{cur(c.freight)}</span>
+        </div>
+        <div className="flex items-center justify-between text-ink-soft">
+          <span>+ Duties ({inp.dutiesPct}%)</span>
+          <span className="tabular">{cur(c.duties)}</span>
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between font-medium">
+          <span>Landed cost / unit</span>
+          <span className="tabular">{cur(c.landed)}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg border bg-surface-2/40 p-3">
+          <p className="text-xs text-ink-faint">Margin</p>
+          <p className={cn("tabular mt-0.5 text-lg font-medium", c.marginPct >= 0 ? "text-good" : "text-danger")}>
+            {c.marginPct.toFixed(0)}%
+          </p>
+        </div>
+        <div className="rounded-lg border bg-surface-2/40 p-3">
+          <p className="text-xs text-ink-faint">Profit / unit</p>
+          <p className="tabular mt-0.5 text-lg font-medium">{cur(c.marginAmt)}</p>
+        </div>
+        <div className="rounded-lg border bg-surface-2/40 p-3">
+          <p className="text-xs text-ink-faint">Markup</p>
+          <p className="tabular mt-0.5 text-lg font-medium">{c.markup.toFixed(1)}×</p>
+        </div>
+      </div>
+
+      {product.quantityToOrder > 0 && (
+        <p className="text-xs text-ink-faint">
+          At {product.quantityToOrder.toLocaleString()} units: landed{" "}
+          <span className="text-ink-soft">{cur(c.landed * product.quantityToOrder)}</span> · projected
+          gross profit{" "}
+          <span className="text-ink-soft">{cur(c.marginAmt * product.quantityToOrder)}</span>.
+        </p>
+      )}
     </div>
   );
 }
@@ -68,6 +179,7 @@ export function ProductDetail({ product }: { product: Product }) {
         <div className="px-5 pt-4">
           <TabsList className="w-full">
             <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+            <TabsTrigger value="costing" className="flex-1">Costing</TabsTrigger>
             <TabsTrigger value="rounds" className="flex-1">
               Rounds
               {product.rounds.length > 0 && (
@@ -98,7 +210,10 @@ export function ProductDetail({ product }: { product: Product }) {
                 Manufacturing
               </p>
               {mf ? (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border bg-surface-2/50 p-3">
+                <Link
+                  href={`/manufacturers?m=${mf.id}`}
+                  className="group mb-4 flex items-center gap-3 rounded-lg border bg-surface-2/50 p-3 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
+                >
                   <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
                     <Factory className="size-4 text-ink-soft" />
                   </span>
@@ -108,8 +223,8 @@ export function ProductDetail({ product }: { product: Product }) {
                       {mf.flag} {mf.country} · {mf.categories[0]}
                     </p>
                   </div>
-                  <ArrowRight className="size-4 text-ink-faint" />
-                </div>
+                  <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                </Link>
               ) : (
                 <p className="mb-4 text-sm text-ink-faint">
                   No manufacturer assigned yet.
@@ -126,6 +241,11 @@ export function ProductDetail({ product }: { product: Product }) {
                 <Field label="Bulk price">{money(product.bulkPrice)}</Field>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Costing */}
+          <TabsContent value="costing" className="mt-0">
+            <CostingTab product={product} />
           </TabsContent>
 
           {/* Rounds timeline */}

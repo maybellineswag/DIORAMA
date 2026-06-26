@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   TrendingUp,
   TrendingDown,
@@ -45,7 +46,10 @@ import {
   type AdPlatform,
   type CampaignBrief,
 } from "@/lib/mock/commerce";
+import { PRODUCTS } from "@/lib/mock/data";
 import { cn } from "@/lib/utils";
+
+const productId = (name: string) => PRODUCTS.find((p) => p.name === name)?.id;
 
 const money = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -279,7 +283,18 @@ function CreativeLibrary() {
                   <div>
                     <p className="text-xs text-ink-faint">Linked products</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {sel.products.map((p) => <Badge key={p} variant="outline">{p}</Badge>)}
+                      {sel.products.map((p) => {
+                        const id = productId(p);
+                        return id ? (
+                          <Link key={p} href={`/samples?product=${id}`}>
+                            <Badge variant="outline" className="hover:border-ink-faint/60 hover:text-foreground">
+                              {p}
+                            </Badge>
+                          </Link>
+                        ) : (
+                          <Badge key={p} variant="outline">{p}</Badge>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

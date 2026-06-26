@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CalendarView } from "@/components/app/calendar-view";
+import { quickMargin } from "@/lib/costing";
 import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer } from "@/lib/mock/data";
 import { CALENDAR_EVENTS } from "@/lib/mock/commerce";
 import type { Product, SampleStatus, Track, Priority } from "@/lib/mock/types";
@@ -147,7 +148,7 @@ function ProductCard({
 }
 
 // ── Table view ───────────────────────────────────────────────
-type SortKey = "name" | "type" | "status" | "priority";
+type SortKey = "name" | "type" | "status" | "priority" | "margin";
 
 function TableView({
   products,
@@ -167,6 +168,9 @@ function TableView({
     if (sort.key === "priority") {
       av = PRIORITY_RANK[a.priority];
       bv = PRIORITY_RANK[b.priority];
+    } else if (sort.key === "margin") {
+      av = quickMargin(a).marginPct;
+      bv = quickMargin(b).marginPct;
     } else {
       av = a[sort.key];
       bv = b[sort.key];
@@ -201,12 +205,13 @@ function TableView({
 
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <div className="min-w-[680px]">
-        <div className="grid grid-cols-[2fr_1fr_1.1fr_1fr_1.3fr] items-center gap-4 border-b bg-surface-2/40 px-4 py-2.5">
+      <div className="min-w-[760px]">
+        <div className="grid grid-cols-[2fr_0.9fr_1.1fr_0.9fr_0.8fr_1.2fr] items-center gap-4 border-b bg-surface-2/40 px-4 py-2.5">
           <Th k="name" label="Product" />
           <Th k="type" label="Type" />
           <Th k="status" label="Status" />
           <Th k="priority" label="Priority" />
+          <Th k="margin" label="Margin" />
           <span className="text-xs font-medium text-ink-faint">Manufacturer</span>
         </div>
         {sorted.map((p) => {
@@ -215,7 +220,7 @@ function TableView({
             <button
               key={p.id}
               onClick={() => onOpen(p)}
-              className="grid h-12 w-full grid-cols-[2fr_1fr_1.1fr_1fr_1.3fr] items-center gap-4 border-b px-4 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
+              className="grid h-12 w-full grid-cols-[2fr_0.9fr_1.1fr_0.9fr_0.8fr_1.2fr] items-center gap-4 border-b px-4 text-left transition-colors last:border-0 hover:bg-elevated/40 cursor-pointer"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 {hasMockup(p) ? (
@@ -238,6 +243,15 @@ function TableView({
               </span>
               <span className="flex items-center gap-1.5 text-xs">
                 <PriorityDot priority={p.priority} /> {p.priority}
+              </span>
+              <span className="tabular text-xs">
+                {p.bulkPrice > 0 ? (
+                  <span className={quickMargin(p).marginPct >= 50 ? "text-good" : "text-ink-soft"}>
+                    {quickMargin(p).marginPct.toFixed(0)}%
+                  </span>
+                ) : (
+                  <span className="text-ink-faint">—</span>
+                )}
               </span>
               <span className="truncate text-xs text-ink-soft">
                 {mf ? mf.name : "—"}
@@ -317,6 +331,18 @@ export default function SamplesPage() {
     setSelected(p);
     setOpen(true);
   };
+
+  // Deep link: /samples?product=ID opens that product's panel.
+  React.useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("product");
+    if (!id) return;
+    const p = products.find((x) => x.id === id);
+    if (p) {
+      setSelected(p);
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const drop = (status: SampleStatus) => {
     const id = dragId.current;

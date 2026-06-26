@@ -86,7 +86,7 @@ export default function ShopifyPage() {
             </div>
 
             {period === "drop" ? (
-              <div className="space-y-3 pt-1">
+              <div className="space-y-4 pt-1">
                 {released.map((d) => (
                   <div key={d.id} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
@@ -98,6 +98,12 @@ export default function ShopifyPage() {
                         className="h-full rounded-full bg-accent"
                         style={{ width: `${(d.revenue / maxDropRev) * 100}%` }}
                       />
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-ink-faint">
+                      <span>Ad {money(d.adSpend)}</span>
+                      <span>Prod {money(d.productionCost)}</span>
+                      <span className="text-good">Net {money(d.netProfit)}</span>
+                      <span>{d.roas}× ROAS</span>
                     </div>
                   </div>
                 ))}

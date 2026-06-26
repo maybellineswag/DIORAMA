@@ -88,6 +88,8 @@ export interface Product {
   pricePerUnit: number;
   bulkPrice: number;
   quantityToOrder: number;
+  /** Target retail (sell) price — used for margin/costing. */
+  retailPrice?: number;
   /** Whether a digital mockup exists yet (concepts without one show no image). */
   hasMockup?: boolean;
   rounds: SampleRound[];
