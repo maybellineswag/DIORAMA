@@ -10,6 +10,9 @@ import {
   LayoutGrid,
   Folder as FolderIcon,
   Move,
+  Inbox,
+  Link2,
+  RefreshCw,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,8 +20,10 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { MoodSorter } from "@/components/app/mood-sorter";
 import { MoodFreeFolders } from "@/components/app/mood-free-folders";
+import { MoodConnections } from "@/components/app/mood-connections";
 import { ViewSwitcher } from "@/components/app/view-switcher";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -30,24 +35,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MOOD_CATEGORIES, MOOD_IMAGES } from "@/lib/mock/data";
+import { CONNECTIONS, MOOD_IMPORTS, type Connection } from "@/lib/mock/commerce";
 import { cn } from "@/lib/utils";
-
-function PinterestMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12c0 4.08 2.44 7.58 5.94 9.13-.08-.78-.16-1.97.03-2.82.18-.77 1.15-4.9 1.15-4.9s-.29-.59-.29-1.46c0-1.37.79-2.39 1.78-2.39.84 0 1.25.63 1.25 1.39 0 .85-.54 2.12-.82 3.3-.23.98.49 1.79 1.46 1.79 1.75 0 3.1-1.85 3.1-4.51 0-2.36-1.7-4.01-4.12-4.01-2.81 0-4.46 2.1-4.46 4.28 0 .85.33 1.76.74 2.25.08.1.09.18.07.29l-.27 1.1c-.04.18-.14.22-.33.13-1.23-.57-2-2.37-2-3.81 0-3.1 2.25-5.95 6.5-5.95 3.41 0 6.06 2.43 6.06 5.68 0 3.39-2.14 6.12-5.1 6.12-1 0-1.93-.52-2.25-1.13l-.61 2.34c-.22.85-.82 1.91-1.22 2.56.92.28 1.89.44 2.9.44 5.52 0 10-4.48 10-10S17.52 2 12 2z" />
-    </svg>
-  );
-}
-function ArenaMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">
-      <circle cx="5" cy="12" r="2.4" />
-      <circle cx="12" cy="12" r="2.4" />
-      <circle cx="19" cy="12" r="2.4" />
-    </svg>
-  );
-}
 
 /** Mac-Finder-style folder, tinted with the current accent. */
 function FolderGlyph({ className }: { className?: string }) {
@@ -65,10 +54,13 @@ function FolderGlyph({ className }: { className?: string }) {
 
 export default function MoodboardPage() {
   const [categories, setCategories] = React.useState(MOOD_CATEGORIES);
-  const [view, setView] = React.useState<"free" | "folders" | "all">("free");
+  const [view, setView] = React.useState<"free" | "folders" | "all" | "imports">("free");
   const [active, setActive] = React.useState("All");
   const [query, setQuery] = React.useState("");
   const [sorterOpen, setSorterOpen] = React.useState(false);
+  const [connOpen, setConnOpen] = React.useState(false);
+  const [connections, setConnections] = React.useState<Connection[]>(CONNECTIONS);
+  const synced = connections.find((c) => c.connected);
   const [addOpen, setAddOpen] = React.useState(false);
   const [newCat, setNewCat] = React.useState("");
   const [dragHover, setDragHover] = React.useState(false);
@@ -145,14 +137,18 @@ export default function MoodboardPage() {
                   { id: "free", label: "Free", icon: Move },
                   { id: "folders", label: "Folders", icon: FolderIcon },
                   { id: "all", label: "All", icon: LayoutGrid },
+                  { id: "imports", label: "Imports", icon: Inbox },
                 ]}
               />
             )}
-            <Button variant="secondary" size="sm" onClick={() => toast("Pinterest sync is a placeholder in this prototype.", { description: "Connect your boards from Settings → Integrations." })}>
-              <PinterestMark /> Pinterest
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => toast("Are.na sync is a placeholder in this prototype.", { description: "Connect your channels from Settings → Integrations." })}>
-              <ArenaMark /> Are.na
+            {synced && (
+              <span className="hidden items-center gap-1.5 rounded-full border bg-surface-2/60 px-2.5 py-1 text-xs text-ink-soft lg:flex">
+                <RefreshCw className="size-3 text-good" />
+                Synced {synced.lastSynced}
+              </span>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setConnOpen(true)}>
+              <Link2 className="size-4" /> Connections
             </Button>
             <Button size="sm" onClick={() => setSorterOpen(true)}>
               <Wand2 className="size-4" /> AI Sort
@@ -223,6 +219,45 @@ export default function MoodboardPage() {
             </span>
             <span className="text-sm">Add category</span>
           </button>
+        </div>
+      ) : view === "imports" ? (
+        /* ── Imports from synced sources ── */
+        <div className="space-y-4">
+          <p className="text-sm text-ink-soft">
+            {MOOD_IMPORTS.length} new references pulled from your connected sources —
+            sort them into a category.
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {MOOD_IMPORTS.map((im) => (
+              <div
+                key={im.id}
+                className="group overflow-hidden rounded-xl border transition-shadow duration-200 hover:shadow-lg"
+              >
+                <div className="relative aspect-square overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={im.src}
+                    alt=""
+                    draggable={false}
+                    className="size-full select-none object-cover"
+                  />
+                  <Badge variant="default" className="absolute left-2 top-2 bg-paper/80 backdrop-blur">
+                    {im.source}
+                  </Badge>
+                </div>
+                <button
+                  onClick={() =>
+                    toast.success("Moved to category", {
+                      description: "Sorting is simulated in this prototype.",
+                    })
+                  }
+                  className="flex w-full items-center justify-center gap-1.5 py-2 text-xs text-accent-ink transition-colors hover:bg-elevated cursor-pointer"
+                >
+                  <Plus className="size-3.5" /> Move to category
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         /* ── Grid view (secondary) ── */
@@ -321,6 +356,13 @@ export default function MoodboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MoodConnections
+        open={connOpen}
+        onOpenChange={setConnOpen}
+        connections={connections}
+        setConnections={setConnections}
+      />
 
       {sorterOpen && <MoodSorter onClose={() => setSorterOpen(false)} />}
     </div>

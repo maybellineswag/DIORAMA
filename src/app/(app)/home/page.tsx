@@ -1,6 +1,8 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   TrendingUp,
   TrendingDown,
@@ -23,6 +25,7 @@ import {
   UPCOMING_DEADLINES,
   SHOPIFY_STATS,
 } from "@/lib/mock/data";
+import { SHOPIFY_DROPS_STATS } from "@/lib/mock/commerce";
 import { cn } from "@/lib/utils";
 
 const money = (n: number) =>
@@ -42,8 +45,21 @@ const contextHref: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const router = useRouter();
   const tracks = productsByStatusTrack();
   const total = PRODUCTS.length;
+  const [shopPeriod, setShopPeriod] = React.useState<"30d" | "drops">("30d");
+  const shop =
+    shopPeriod === "drops"
+      ? SHOPIFY_DROPS_STATS
+      : {
+          revenue: SHOPIFY_STATS.revenue30d,
+          revenueDelta: SHOPIFY_STATS.revenueDelta,
+          orders: SHOPIFY_STATS.orders30d,
+          ordersDelta: SHOPIFY_STATS.ordersDelta,
+          aov: SHOPIFY_STATS.aov,
+          aovDelta: SHOPIFY_STATS.aovDelta,
+        };
 
   const statusCards = [
     { label: "In development", value: tracks.Development, tone: "info" as const },
@@ -91,42 +107,64 @@ export default function HomePage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Shopify */}
         <div className="space-y-6 lg:col-span-2">
-          <Link href="/settings" className="block">
-            <Card className="overflow-hidden transition-all hover:border-ink-faint/40 hover:shadow-md">
-              <div className="flex items-center justify-between border-b px-5 py-3.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Shopify performance</span>
-                  <Badge variant="good">Connected</Badge>
-                </div>
-                <span className="text-xs text-ink-faint">Last 30 days</span>
+          <Card
+            onClick={() => router.push("/shopify")}
+            className="cursor-pointer overflow-hidden transition-all hover:border-ink-faint/40 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between border-b px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Shopify performance</span>
+                <Badge variant="good">Connected</Badge>
               </div>
-              <div className="grid grid-cols-3 divide-x">
-                {[
-                  { label: "Revenue", value: money(SHOPIFY_STATS.revenue30d), delta: SHOPIFY_STATS.revenueDelta },
-                  { label: "Orders", value: SHOPIFY_STATS.orders30d.toLocaleString(), delta: SHOPIFY_STATS.ordersDelta },
-                  { label: "Avg. order", value: money(SHOPIFY_STATS.aov), delta: SHOPIFY_STATS.aovDelta },
-                ].map((m) => (
-                  <div key={m.label} className="p-5">
-                    <p className="text-xs text-ink-soft">{m.label}</p>
-                    <p className="tabular mt-1.5 text-2xl font-medium">{m.value}</p>
-                    <p
-                      className={cn(
-                        "mt-1 flex items-center gap-1 text-xs",
-                        m.delta >= 0 ? "text-good" : "text-danger",
-                      )}
-                    >
-                      {m.delta >= 0 ? (
-                        <TrendingUp className="size-3" />
-                      ) : (
-                        <TrendingDown className="size-3" />
-                      )}
-                      {Math.abs(m.delta)}%
-                    </p>
-                  </div>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-0.5 rounded-lg border bg-surface-2/60 p-0.5"
+              >
+                {(
+                  [
+                    ["30d", "Last 30 days"],
+                    ["drops", "Last 2 drops"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setShopPeriod(id)}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer",
+                      shopPeriod === id ? "bg-card text-foreground shadow-sm" : "text-ink-soft hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
                 ))}
               </div>
-            </Card>
-          </Link>
+            </div>
+            <div className="grid grid-cols-3 divide-x">
+              {[
+                { label: "Revenue", value: money(shop.revenue), delta: shop.revenueDelta },
+                { label: "Orders", value: shop.orders.toLocaleString(), delta: shop.ordersDelta },
+                { label: "Avg. order", value: money(shop.aov), delta: shop.aovDelta },
+              ].map((m) => (
+                <div key={m.label} className="p-5">
+                  <p className="text-xs text-ink-soft">{m.label}</p>
+                  <p className="tabular mt-1.5 text-2xl font-medium">{m.value}</p>
+                  <p
+                    className={cn(
+                      "mt-1 flex items-center gap-1 text-xs",
+                      m.delta >= 0 ? "text-good" : "text-danger",
+                    )}
+                  >
+                    {m.delta >= 0 ? (
+                      <TrendingUp className="size-3" />
+                    ) : (
+                      <TrendingDown className="size-3" />
+                    )}
+                    {Math.abs(m.delta)}%
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <Card>

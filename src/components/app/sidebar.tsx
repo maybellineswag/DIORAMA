@@ -48,8 +48,9 @@ export function Sidebar() {
     hoverTimer.current = setTimeout(() => setHover(true), 450);
   };
   const onLeave = () => {
+    // Fast collapse, slow expand — gets out of the way immediately.
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => setHover(false), 450);
+    hoverTimer.current = setTimeout(() => setHover(false), 120);
   };
   React.useEffect(() => () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);

@@ -9,6 +9,7 @@ import {
   SquareKanban,
   Table as TableIcon,
   LayoutGrid,
+  CalendarDays,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -23,11 +24,13 @@ import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { CalendarView } from "@/components/app/calendar-view";
 import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer } from "@/lib/mock/data";
+import { CALENDAR_EVENTS } from "@/lib/mock/commerce";
 import type { Product, SampleStatus, Track, Priority } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
-type View = "board" | "table" | "gallery";
+type View = "board" | "table" | "gallery" | "calendar";
 
 const TRACK_FILTERS: ("All" | Track)[] = [
   "All",
@@ -342,6 +345,7 @@ export default function SamplesPage() {
                   { id: "board", label: "Board", icon: SquareKanban },
                   { id: "table", label: "Table", icon: TableIcon },
                   { id: "gallery", label: "Gallery", icon: LayoutGrid },
+                  { id: "calendar", label: "Calendar", icon: CalendarDays },
                 ]}
               />
               <Button size="sm">
@@ -444,6 +448,17 @@ export default function SamplesPage() {
       {view === "gallery" && (
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
           <GalleryView products={filteredProducts} onOpen={openProduct} />
+        </div>
+      )}
+
+      {view === "calendar" && (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
+          <CalendarView
+            events={CALENDAR_EVENTS.filter(
+              (e) => e.type === "sample" || e.type === "production",
+            )}
+            types={["sample", "production"]}
+          />
         </div>
       )}
 

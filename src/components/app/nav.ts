@@ -6,6 +6,9 @@ import {
   Factory,
   Frame,
   ListChecks,
+  CalendarDays,
+  Store,
+  Megaphone,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +28,9 @@ export const NAV: NavItem[] = [
   { label: "Manufacturers", href: "/manufacturers", icon: Factory, hint: "Factory directory" },
   { label: "Collection Planning", href: "/collections", icon: Frame, hint: "Canvas board" },
   { label: "Tasks", href: "/tasks", icon: ListChecks, hint: "Team to-dos" },
+  { label: "Calendar", href: "/calendar", icon: CalendarDays, hint: "Everything time-sensitive" },
+  { label: "Store", href: "/shopify", icon: Store, hint: "Shopify performance" },
+  { label: "Ad Studio", href: "/ad-studio", icon: Megaphone, hint: "Ads & campaigns" },
 ];
 
 export const SETTINGS_ITEM: NavItem = {

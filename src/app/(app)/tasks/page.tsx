@@ -8,6 +8,7 @@ import {
   GripVertical,
   SquareKanban,
   Table as TableIcon,
+  CalendarDays,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -21,11 +22,13 @@ import { MemberAvatar, PriorityDot } from "@/components/app/bits";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { CalendarView } from "@/components/app/calendar-view";
 import { TASKS, TASK_STATUSES, member } from "@/lib/mock/data";
+import { CALENDAR_EVENTS } from "@/lib/mock/commerce";
 import type { Task, TaskStatus, Priority } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
-type View = "board" | "table";
+type View = "board" | "table" | "calendar";
 
 const TODAY = new Date("2026-06-26");
 
@@ -229,6 +232,7 @@ export default function TasksPage() {
                 options={[
                   { id: "board", label: "Board", icon: SquareKanban },
                   { id: "table", label: "Table", icon: TableIcon },
+                  { id: "calendar", label: "Calendar", icon: CalendarDays },
                 ]}
               />
               <Button size="sm" onClick={() => toast("New task form is simulated in this prototype.")}>
@@ -292,6 +296,15 @@ export default function TasksPage() {
       {view === "table" && (
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
           <TableView tasks={tasks} onOpen={openTask} />
+        </div>
+      )}
+
+      {view === "calendar" && (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
+          <CalendarView
+            events={CALENDAR_EVENTS.filter((e) => e.type === "task")}
+            types={["task"]}
+          />
         </div>
       )}
 
