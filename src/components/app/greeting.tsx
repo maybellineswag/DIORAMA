@@ -48,8 +48,9 @@ export function Greeting({ name }: { name: string }) {
       ) : (
         <span className="display text-xl">{workspace.name}</span>
       )}
-      <p className="serif text-2xl tracking-tight text-ink">
-        {phrase}, {name}.
+      <p className="text-2xl tracking-tight text-ink">
+        <span className="serif">{phrase},</span>{" "}
+        <span className="font-medium">{name}.</span>
       </p>
     </div>
   );

@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { Search, Sparkles, Bell } from "lucide-react";
 
-import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { NAV, SETTINGS_ITEM } from "@/components/app/nav";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -17,20 +16,17 @@ import { RECENT_ACTIVITY } from "@/lib/mock/data";
 
 export function Topbar() {
   const pathname = usePathname();
-  const { setCommandOpen, setAssistantOpen } = useApp();
+  const { setCommandOpen, setAssistantOpen, workspace } = useApp();
   const current =
     [...NAV, SETTINGS_ITEM].find((n) => pathname.startsWith(n.href))?.label ??
-    "Dashboard";
+    "Home";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-paper/80 px-4 backdrop-blur-xl">
-      <div className="w-[210px] shrink-0">
-        <WorkspaceSwitcher />
-      </div>
-
-      <div className="hidden items-center gap-2 text-sm text-ink-faint sm:flex">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-paper/80 px-5 backdrop-blur-xl">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium text-ink-soft">{workspace.name}</span>
         <span className="text-ink-faint/50">/</span>
-        <span className="font-medium text-ink-soft">{current}</span>
+        <span className="text-ink-faint">{current}</span>
       </div>
 
       <div className="flex-1" />

@@ -9,15 +9,16 @@ import {
   ImagePlus,
   LayoutGrid,
   Folder as FolderIcon,
+  Move,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { MoodSorter } from "@/components/app/mood-sorter";
+import { MoodFreeFolders } from "@/components/app/mood-free-folders";
 import { ViewSwitcher } from "@/components/app/view-switcher";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -64,7 +65,7 @@ function FolderGlyph({ className }: { className?: string }) {
 
 export default function MoodboardPage() {
   const [categories, setCategories] = React.useState(MOOD_CATEGORIES);
-  const [view, setView] = React.useState<"folders" | "grid">("folders");
+  const [view, setView] = React.useState<"free" | "folders" | "all">("free");
   const [active, setActive] = React.useState("All");
   const [query, setQuery] = React.useState("");
   const [sorterOpen, setSorterOpen] = React.useState(false);
@@ -96,7 +97,7 @@ export default function MoodboardPage() {
 
   const openFolder = (cat: string) => {
     setActive(cat);
-    setView("grid");
+    setView("all");
   };
 
   const addCategory = () => {
@@ -112,23 +113,15 @@ export default function MoodboardPage() {
       {imgs.map((im) => (
         <div
           key={im.id}
-          className="group relative break-inside-avoid overflow-hidden rounded-xl border border-border transition-shadow duration-200 hover:shadow-lg"
+          className="break-inside-avoid overflow-hidden rounded-xl border border-border transition-shadow duration-200 hover:shadow-lg"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={im.src}
             alt={im.tags.join(", ")}
-            loading="lazy"
             draggable={false}
             className="block w-full select-none"
           />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap gap-1 bg-black/55 p-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            {im.tags.map((t) => (
-              <Badge key={t} variant="accent" className="bg-accent-soft/90">
-                {t}
-              </Badge>
-            ))}
-          </div>
         </div>
       ))}
     </div>
@@ -144,10 +137,14 @@ export default function MoodboardPage() {
             {!searching && (
               <ViewSwitcher
                 value={view}
-                onChange={setView}
+                onChange={(v) => {
+                  if (v === "all") setActive("All");
+                  setView(v);
+                }}
                 options={[
+                  { id: "free", label: "Free", icon: Move },
                   { id: "folders", label: "Folders", icon: FolderIcon },
-                  { id: "grid", label: "All", icon: LayoutGrid },
+                  { id: "all", label: "All", icon: LayoutGrid },
                 ]}
               />
             )}
@@ -191,8 +188,16 @@ export default function MoodboardPage() {
             </div>
           )}
         </>
+      ) : view === "free" ? (
+        /* ── Free draggable folders (positions saved) ── */
+        <MoodFreeFolders
+          categories={categories}
+          countFor={countFor}
+          onOpen={openFolder}
+          onAdd={() => setAddOpen(true)}
+        />
       ) : view === "folders" ? (
-        /* ── Folder view (primary) ── */
+        /* ── Folder grid view ── */
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {categories
             .filter((c) => c !== "All")

@@ -9,15 +9,17 @@ import {
   Sun,
   Moon,
   User,
+  Check,
+  Plus,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
 
 import { NAV, SETTINGS_ITEM } from "@/components/app/nav";
-import { DioramaWordmark } from "@/components/logo";
+import { DioramaWordmark, WorkspaceLogo } from "@/components/logo";
 import { MemberAvatar } from "@/components/app/bits";
 import { useApp } from "@/lib/store";
-import { member, CURRENT_USER_ID } from "@/lib/mock/data";
+import { member, CURRENT_USER_ID, WORKSPACES } from "@/lib/mock/data";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -31,13 +33,14 @@ import {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, setTheme, sidebarCollapsed, toggleSidebar } = useApp();
+  const { theme, setTheme, sidebarCollapsed, toggleSidebar, workspace, setWorkspace } =
+    useApp();
   const me = member(CURRENT_USER_ID)!;
   const [hover, setHover] = React.useState(false);
   const hoverTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Collapsed shows an icon rail; a deliberate hover (~450ms) expands it, so a
-  // quick mouse pass-over doesn't pop it open.
+  // quick mouse pass-over doesn't pop it open — and the same delay on leave.
   const expanded = !sidebarCollapsed || hover;
 
   const onEnter = () => {
@@ -46,7 +49,7 @@ export function Sidebar() {
   };
   const onLeave = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    setHover(false);
+    hoverTimer.current = setTimeout(() => setHover(false), 450);
   };
   React.useEffect(() => () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
@@ -142,9 +145,31 @@ export function Sidebar() {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" className="w-56">
-              <DropdownMenuLabel>{me.email}</DropdownMenuLabel>
+            <DropdownMenuContent align="start" side="top" className="w-60">
+              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+              {WORKSPACES.map((w) => (
+                <DropdownMenuItem
+                  key={w.id}
+                  onClick={() => setWorkspace(w.id)}
+                  className="gap-2.5"
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-surface-2">
+                    <WorkspaceLogo workspace={w} />
+                  </span>
+                  <span className="flex-1 truncate">{w.name}</span>
+                  <Check
+                    className={cn(
+                      "size-4 text-accent",
+                      workspace.id === w.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem className="text-ink-soft">
+                <Plus className="size-4" /> New workspace
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuLabel>{me.email}</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => router.push("/settings")}>
                 <User className="size-4" /> Profile
               </DropdownMenuItem>
