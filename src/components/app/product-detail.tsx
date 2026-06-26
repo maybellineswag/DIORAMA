@@ -10,10 +10,11 @@ import {
   ArrowRight,
   Paperclip,
   Download,
+  Folder,
 } from "lucide-react";
 
 import type { Product } from "@/lib/mock/types";
-import { manufacturer } from "@/lib/mock/data";
+import { manufacturer, TRACKS, ASSETS } from "@/lib/mock/data";
 import { computeCosting, defaultInputs } from "@/lib/costing";
 import { cn } from "@/lib/utils";
 import { PriorityBadge, StatusBadge } from "@/components/app/bits";
@@ -44,6 +45,45 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const cur = (n: number) =>
   `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+
+const TODAY = new Date("2026-06-27");
+function daysInStage(p: Product): number | null {
+  if (!p.statusSince) return null;
+  return Math.max(0, Math.round((TODAY.getTime() - new Date(p.statusSince).getTime()) / 86400000));
+}
+const trackOf = (status: Product["status"]) =>
+  TRACKS.find((t) => t.statuses.includes(status));
+const pieceFor = (p: Product) =>
+  ASSETS.find((a) => a.category === "Pieces" && a.seed === p.seed);
+
+/** Compact lifecycle progress for the product's current track. */
+function Stepper({ product }: { product: Product }) {
+  const track = trackOf(product.status);
+  if (!track) return null;
+  const idx = track.statuses.indexOf(product.status);
+  return (
+    <div className="mt-1 space-y-1.5">
+      <div className="flex items-center justify-between text-[11px] text-ink-faint">
+        <span>{track.track}</span>
+        <span className="tabular">
+          {idx + 1} / {track.statuses.length}
+        </span>
+      </div>
+      <div className="flex gap-1">
+        {track.statuses.map((s, i) => (
+          <span
+            key={s}
+            title={s}
+            className={cn(
+              "h-1.5 flex-1 rounded-full",
+              i < idx ? "bg-accent/50" : i === idx ? "bg-accent" : "bg-surface-2",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function CostingTab({ product }: { product: Product }) {
   const [inp, setInp] = React.useState(() => defaultInputs(product));
@@ -170,9 +210,15 @@ export function ProductDetail({ product }: { product: Product }) {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge status={product.status} />
               <PriorityBadge priority={product.priority} />
+              {daysInStage(product) !== null && (
+                <span className="text-xs text-ink-faint">
+                  {daysInStage(product)}d in stage
+                </span>
+              )}
             </div>
           </div>
         </div>
+        <Stepper product={product} />
       </SheetHeader>
 
       <Tabs defaultValue="details" className="flex min-h-0 flex-1 flex-col gap-0">
@@ -197,7 +243,15 @@ export function ProductDetail({ product }: { product: Product }) {
           {/* Details */}
           <TabsContent value="details" className="mt-0 space-y-6">
             <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-              <Field label="Drop">{product.drop}</Field>
+              <Field label="Drop">
+                <Link
+                  href="/shopify"
+                  className="inline-flex items-center gap-1 text-accent-ink hover:underline"
+                >
+                  {product.drop}
+                  <ArrowRight className="size-3" />
+                </Link>
+              </Field>
               <Field label="Collection">{product.collection}</Field>
               <Field label="Type">{product.type}</Field>
               <Field label="Priority">{product.priority}</Field>
@@ -328,29 +382,57 @@ export function ProductDetail({ product }: { product: Product }) {
             )}
           </TabsContent>
 
-          {/* Files */}
-          <TabsContent value="files" className="mt-0 space-y-2">
-            {product.files.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                <Paperclip className="size-6 text-ink-faint" />
-                <p className="text-sm text-ink-soft">No files attached</p>
-              </div>
-            ) : (
-              product.files.map((f) => (
-                <div
-                  key={f.id}
-                  className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-3 transition-colors hover:border-ink-faint/40"
+          {/* Files — grouped by kind, with a jump to the full folder in Assets */}
+          <TabsContent value="files" className="mt-0 space-y-4">
+            {(() => {
+              const piece = pieceFor(product);
+              return (
+                <Link
+                  href={piece ? `/assets?file=${piece.id}` : "/assets"}
+                  className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-3 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
                 >
                   <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
-                    <FileText className="size-4 text-ink-soft" />
+                    <Folder className="size-4 text-ink-soft" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{f.name}</p>
+                    <p className="text-sm font-medium">Open in Asset Library</p>
                     <p className="text-xs text-ink-faint">
-                      {f.kind} · {f.size}
+                      The full folder for this product
                     </p>
                   </div>
-                  <Download className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+                  <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              );
+            })()}
+
+            {product.files.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <Paperclip className="size-6 text-ink-faint" />
+                <p className="text-sm text-ink-soft">No files attached yet</p>
+              </div>
+            ) : (
+              Array.from(new Set(product.files.map((f) => f.kind))).map((kind) => (
+                <div key={kind} className="space-y-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                    {kind}
+                  </p>
+                  {product.files
+                    .filter((f) => f.kind === kind)
+                    .map((f) => (
+                      <div
+                        key={f.id}
+                        className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-3 transition-colors hover:border-ink-faint/40"
+                      >
+                        <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
+                          <FileText className="size-4 text-ink-soft" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm">{f.name}</p>
+                          <p className="text-xs text-ink-faint">{f.size}</p>
+                        </div>
+                        <Download className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+                    ))}
                 </div>
               ))
             )}

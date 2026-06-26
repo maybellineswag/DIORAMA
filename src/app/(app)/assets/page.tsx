@@ -223,6 +223,19 @@ export default function AssetsPage() {
     setOpen(true);
   };
 
+  // Deep link: /assets?file=ID opens that asset's preview.
+  React.useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("file");
+    if (!id) return;
+    const a = ASSETS.find((x) => x.id === id);
+    if (a) {
+      setCategory(a.category);
+      setSelected(a);
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader

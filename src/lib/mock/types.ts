@@ -90,6 +90,8 @@ export interface Product {
   quantityToOrder: number;
   /** Target retail (sell) price — used for margin/costing. */
   retailPrice?: number;
+  /** ISO date the product entered its current status (for time-in-stage). */
+  statusSince?: string;
   /** Whether a digital mockup exists yet (concepts without one show no image). */
   hasMockup?: boolean;
   rounds: SampleRound[];
