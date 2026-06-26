@@ -67,7 +67,7 @@ export default function HomePage() {
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statusCards.map((s) => (
           <Link key={s.label} href="/samples">
-            <Card className="p-5 transition-all hover:border-ink-faint/40 hover:shadow-md">
+            <Card className="p-5 transition-all hover:-translate-y-0.5 hover:border-ink-faint/40 hover:shadow-md">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-ink-soft">{s.label}</span>
                 <span className={cn("size-2 rounded-full", TONE[s.tone].dot)} />
@@ -257,7 +257,7 @@ export default function HomePage() {
             const Icon = n.icon;
             return (
               <Link key={n.href} href={n.href}>
-                <Card className="group p-4 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi">
+                <Card className="group p-4 transition-all hover:-translate-y-0.5 hover:border-ink-faint/40 hover:bg-surface-hi hover:shadow-md">
                   <div className="flex items-center justify-between">
                     <span className="flex size-9 items-center justify-center rounded-md bg-surface-2 group-hover:bg-accent-soft">
                       <Icon className="size-4 text-ink-soft group-hover:text-accent-ink" />

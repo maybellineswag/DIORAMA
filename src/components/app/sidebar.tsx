@@ -34,9 +34,23 @@ export function Sidebar() {
   const { theme, setTheme, sidebarCollapsed, toggleSidebar } = useApp();
   const me = member(CURRENT_USER_ID)!;
   const [hover, setHover] = React.useState(false);
+  const hoverTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Collapsed shows an icon rail; hovering expands it as an overlay (no reflow).
+  // Collapsed shows an icon rail; a deliberate hover (~450ms) expands it, so a
+  // quick mouse pass-over doesn't pop it open.
   const expanded = !sidebarCollapsed || hover;
+
+  const onEnter = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => setHover(true), 450);
+  };
+  const onLeave = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    setHover(false);
+  };
+  React.useEffect(() => () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  }, []);
 
   const navLink = (item: (typeof NAV)[number], active: boolean) => {
     const Icon = item.icon;
@@ -66,8 +80,8 @@ export function Sidebar() {
 
   return (
     <aside
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
       className={cn(
         "flex h-dvh shrink-0 flex-col border-r bg-surface-2 transition-[width] duration-200 ease-out",
         expanded ? "w-60" : "w-16",

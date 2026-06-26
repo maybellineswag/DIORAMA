@@ -453,9 +453,14 @@ export default function CollectionsPage() {
                   className="group absolute w-44 cursor-grab overflow-hidden rounded-xl border bg-card shadow-md active:cursor-grabbing"
                   style={{ left: it.x, top: it.y }}
                 >
-                  <div className="aspect-square overflow-hidden">
+                  <div className="pointer-events-none aspect-square select-none overflow-hidden">
                     {prod.image ? (
-                      <img src={prod.image} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={prod.image}
+                        alt=""
+                        draggable={false}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <Thumb seed={prod.seed} />
                     )}
