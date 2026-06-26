@@ -38,6 +38,8 @@ interface AppState {
   setCommandOpen: (v: boolean) => void;
   assistantOpen: boolean;
   setAssistantOpen: (v: boolean) => void;
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
 }
 
 const AppContext = React.createContext<AppState | null>(null);
@@ -48,6 +50,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [accent, setAccentState] = React.useState("clay");
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [assistantOpen, setAssistantOpen] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const toggleSidebar = React.useCallback(() => setSidebarCollapsed((v) => !v), []);
 
   const setTheme = React.useCallback((t: Theme) => {
     setThemeState(t);
@@ -109,6 +113,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCommandOpen,
     assistantOpen,
     setAssistantOpen,
+    sidebarCollapsed,
+    toggleSidebar,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

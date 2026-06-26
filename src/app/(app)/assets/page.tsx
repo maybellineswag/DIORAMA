@@ -47,12 +47,6 @@ const CATEGORIES: ("All" | AssetCategory)[] = [
   "Templates",
 ];
 
-function hashRatio(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return [1, 0.78, 1.25, 1.4][h % 4];
-}
-
 function AssetPreview({ asset }: { asset: Asset }) {
   const is3D = asset.category === "Hardware";
   return (
@@ -312,17 +306,14 @@ export default function AssetsPage() {
               <p className="text-sm text-ink-soft">No files match these filters</p>
             </div>
           ) : (
-            <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 [&>*]:mb-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filtered.map((a) => (
                 <button
                   key={a.id}
                   onClick={() => openAsset(a)}
-                  className="group block w-full break-inside-avoid overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
+                  className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
                 >
-                  <div
-                    className="relative overflow-hidden"
-                    style={{ aspectRatio: String(hashRatio(a.seed)) }}
-                  >
+                  <div className="relative aspect-square overflow-hidden">
                     <Thumb seed={a.seed} />
                     {a.category === "Hardware" && (
                       <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-paper/80 px-1.5 py-0.5 text-[10px] text-ink-soft backdrop-blur">

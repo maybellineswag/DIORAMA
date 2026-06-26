@@ -5,12 +5,20 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("");
+// Deterministic, muted profile-placeholder colors per member.
+const AVATAR_COLORS = [
+  "#6b7a55",
+  "#9c6b8a",
+  "#5e6b78",
+  "#a86b52",
+  "#7b6d86",
+  "#5b8a72",
+  "#9a7b4f",
+];
+function colorFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
 export function MemberAvatar({
@@ -26,7 +34,12 @@ export function MemberAvatar({
   if (!m) return null;
   const avatar = (
     <Avatar className={cn("size-6", className)}>
-      <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
+      <AvatarFallback
+        className="text-[11px] font-medium text-white"
+        style={{ backgroundColor: colorFor(m.id) }}
+      >
+        {m.name[0]}
+      </AvatarFallback>
     </Avatar>
   );
   if (!showName) return avatar;

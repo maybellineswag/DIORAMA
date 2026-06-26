@@ -53,6 +53,15 @@ const TONE_TEXT: Record<string, string> = {
   info: "text-info",
 };
 
+const TONE_DOT: Record<string, string> = {
+  default: "bg-ink-faint",
+  accent: "bg-accent",
+  good: "bg-good",
+  danger: "bg-danger",
+  warn: "bg-warn",
+  info: "bg-info",
+};
+
 const PRIORITY_RANK: Record<Priority, number> = {
   Urgent: 0,
   High: 1,
@@ -60,8 +69,8 @@ const PRIORITY_RANK: Record<Priority, number> = {
   Low: 3,
 };
 
-/** Concept = pure idea (no mockup yet) → text-forward, no thumbnail. */
-const hasMockup = (p: Product) => p.status !== "Concept";
+/** A product shows its image once a mockup exists; pure ideas show a concept tile. */
+const hasMockup = (p: Product) => p.hasMockup !== false;
 
 function ConceptTile({ className }: { className?: string }) {
   return (
@@ -216,7 +225,10 @@ function TableView({
                 <span className="truncate text-sm font-medium">{p.name}</span>
               </span>
               <span className="truncate text-xs text-ink-soft">{p.type}</span>
-              <StatusBadge status={p.status} />
+              <span className="flex items-center gap-1.5 text-xs text-ink-soft">
+                <span className={cn("size-2 shrink-0 rounded-full", TONE_DOT[STATUS_TONE[p.status]])} />
+                <span className="truncate">{p.status}</span>
+              </span>
               <span className="flex items-center gap-1.5 text-xs">
                 <PriorityDot priority={p.priority} /> {p.priority}
               </span>

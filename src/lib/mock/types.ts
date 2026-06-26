@@ -24,7 +24,6 @@ export type Priority = "Low" | "Medium" | "High" | "Urgent";
 export type SampleStatus =
   // Development
   | "Concept"
-  | "Mockup"
   | "Techpack In Progress"
   | "Techpack In Review"
   | "Ready for Quote"
@@ -85,6 +84,8 @@ export interface Product {
   pricePerUnit: number;
   bulkPrice: number;
   quantityToOrder: number;
+  /** Whether a digital mockup exists yet (concepts without one show no image). */
+  hasMockup?: boolean;
   rounds: SampleRound[];
   files: FileRef[];
   activity: ActivityEntry[];
@@ -109,6 +110,10 @@ export interface Capability {
   sampleCost: string;
   sampleLeadDays: number;
   bulkLeadDays: number;
+  /** Avg bulk unit price (every design differs, so it's an average). */
+  avgUnitPrice: string;
+  /** Estimated shipping added to a bulk quote. */
+  shippingEst: string;
 }
 
 export interface Manufacturer {

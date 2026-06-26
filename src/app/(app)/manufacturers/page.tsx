@@ -175,29 +175,36 @@ function ProfileSheet({
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
                 Products they make
               </p>
-              <div className="overflow-hidden rounded-lg border">
-                <div className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b bg-surface-2/50 px-3 py-2 text-[11px] font-medium text-ink-faint">
-                  <span>Product</span>
-                  <span>MOQ</span>
-                  <span>Sample</span>
-                  <span className="flex items-center gap-1"><Clock className="size-3" />Smpl</span>
-                  <span className="flex items-center gap-1"><Clock className="size-3" />Bulk</span>
-                </div>
+              <div className="space-y-2">
                 {mf.capabilities.map((c) => (
-                  <div
-                    key={c.product}
-                    className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b px-3 py-2.5 text-sm last:border-0"
-                  >
-                    <span className="truncate font-medium">{c.product}</span>
-                    <span className="tabular text-ink-soft">{c.moq}</span>
-                    <span className="text-ink-soft">{c.sampleCost}</span>
-                    <span className="tabular text-ink-soft">{c.sampleLeadDays}d</span>
-                    <span className="tabular text-ink-soft">{c.bulkLeadDays}d</span>
+                  <div key={c.product} className="rounded-lg border bg-surface-2/40 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{c.product}</span>
+                      <span className="text-sm">
+                        {c.avgUnitPrice}{" "}
+                        <span className="text-xs text-ink-faint">/ unit avg</span>
+                      </span>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-3 gap-x-2 gap-y-2 text-xs">
+                      {[
+                        ["MOQ", String(c.moq)],
+                        ["Sample", c.sampleCost],
+                        ["Shipping", c.shippingEst],
+                        ["Sample lead", `${c.sampleLeadDays}d`],
+                        ["Bulk lead", `${c.bulkLeadDays}d`],
+                      ].map(([k, v]) => (
+                        <div key={k}>
+                          <p className="text-ink-faint">{k}</p>
+                          <p className="text-ink-soft">{v}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] text-ink-faint">
-                Smpl = days to deliver a sample · Bulk = days to complete a bulk run
+              <p className="mt-2 flex items-center gap-1 text-[11px] text-ink-faint">
+                <Clock className="size-3" />
+                Avg unit price varies per design · shipping is an estimate by weight &amp; country
               </p>
             </div>
 
@@ -374,6 +381,8 @@ function AddDialog({
             sampleCost: form.capSampleCost || "TBD",
             sampleLeadDays: Number(form.capSampleLead) || 14,
             bulkLeadDays: Number(form.capBulkLead) || 40,
+            avgUnitPrice: "TBD",
+            shippingEst: "TBD",
           },
         ]
       : [];

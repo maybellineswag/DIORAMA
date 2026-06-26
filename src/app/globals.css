@@ -211,10 +211,12 @@ body {
     letter-spacing: -0.02em;
     font-weight: 600;
   }
-  /* Serif reserved for the single expressive moment: the Home greeting. */
+  /* Serif reserved for the single expressive moment: the Home greeting.
+     Prefers a locally-installed Apple Garamond, falls back to EB Garamond. */
   .serif {
-    font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    font-family: "Apple Garamond", "AppleGaramond", var(--font-display),
+      "EB Garamond", Georgia, serif;
+    letter-spacing: -0.005em;
   }
   .tabular {
     font-variant-numeric: tabular-nums;
