@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import type { Product, SampleCandidate } from "@/lib/mock/types";
 import { manufacturer, capableManufacturers, TRACKS, ASSETS } from "@/lib/mock/data";
-import { computeCosting, defaultInputs, manufacturerQuote, landed } from "@/lib/costing";
+import { computeCosting, defaultInputs, defaultFreight, manufacturerQuote, landed } from "@/lib/costing";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge, StatusBadge } from "@/components/app/bits";
@@ -91,15 +91,26 @@ function Stepper({ product }: { product: Product }) {
 }
 
 function CostingTab({ product }: { product: Product }) {
-  const [inp, setInp] = React.useState(() => defaultInputs(product));
-  const c = computeCosting(product, inp);
+  const factories = capableManufacturers(product.type);
+  const [mfId, setMfId] = React.useState<string | null>(
+    product.manufacturerId ?? factories[0]?.id ?? null,
+  );
+  const [dutiesPct, setDutiesPct] = React.useState(12);
+  const [retail, setRetail] = React.useState(
+    product.retailPrice ?? (Math.round(product.bulkPrice * 4) || 0),
+  );
 
-  if (product.bulkPrice <= 0) {
+  const q = manufacturerQuote(product, mfId);
+  const production = q?.production ?? product.bulkPrice;
+  const freight = q?.freight ?? defaultFreight(product);
+  const c = computeCosting(product, { production, freight, dutiesPct, retail });
+
+  if (production <= 0 && factories.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
         <p className="text-sm text-ink-soft">No costing yet</p>
         <p className="text-xs text-ink-faint">
-          Costing unlocks once a bulk price is set (after quoting).
+          Costing unlocks once a factory quote or bulk price is set.
         </p>
       </div>
     );
@@ -135,26 +146,37 @@ function CostingTab({ product }: { product: Product }) {
     </div>
   );
 
-  const srcMf = manufacturer(product.manufacturerId);
-  const fromQuote = !!manufacturerQuote(product, product.manufacturerId);
-
   return (
     <div className="space-y-5">
-      {fromQuote && srcMf && (
-        <Link
-          href="/manufacturers"
-          className="flex items-center gap-1 text-xs text-ink-faint hover:text-ink-soft"
-        >
-          Production &amp; freight from{" "}
-          <span className="text-accent-ink">{srcMf.name}</span>
-          <ArrowRight className="size-3" />
-        </Link>
+      {factories.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs text-ink-faint">Model costing with factory</p>
+          <div className="flex flex-wrap gap-1.5">
+            {factories.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setMfId(m.id)}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors cursor-pointer",
+                  mfId === m.id
+                    ? "border-accent/40 bg-accent-soft text-accent-ink"
+                    : "border-border text-ink-soft hover:bg-elevated/60",
+                )}
+              >
+                {m.flag} {m.name}
+                {product.manufacturerId === m.id && (
+                  <Check className="size-3 text-good" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-        <Field label="Production / unit">{cur(c.production)}</Field>
-        {num("Freight / unit", inp.freight, (v) => setInp({ ...inp, freight: v }), "$")}
-        {num("Duties", inp.dutiesPct, (v) => setInp({ ...inp, dutiesPct: v }), undefined, "%")}
-        {num("Retail price", inp.retail, (v) => setInp({ ...inp, retail: v }), "$")}
+        <Field label="Production / unit">{cur(production)}</Field>
+        <Field label="Freight / unit">{cur(freight)}</Field>
+        {num("Duties", dutiesPct, setDutiesPct, undefined, "%")}
+        {num("Retail price", retail, setRetail, "$")}
       </div>
 
       <div className="space-y-2 rounded-lg border bg-surface-2/40 p-4 text-sm">
@@ -167,7 +189,7 @@ function CostingTab({ product }: { product: Product }) {
           <span className="tabular">{cur(c.freight)}</span>
         </div>
         <div className="flex items-center justify-between text-ink-soft">
-          <span>+ Duties ({inp.dutiesPct}%)</span>
+          <span>+ Duties ({dutiesPct}%)</span>
           <span className="tabular">{cur(c.duties)}</span>
         </div>
         <Separator />
