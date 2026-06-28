@@ -51,6 +51,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const cur = (n: number) =>
   `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 
+/** Split a sentence into bullet points on semicolons / sentence breaks. */
+const bullets = (s: string): string[] =>
+  s
+    .split(/;\s*|\.\s+/)
+    .map((x) => x.trim().replace(/\.$/, ""))
+    .filter(Boolean);
+
 const TODAY = new Date("2026-06-27");
 function daysInStage(p: Product): number | null {
   if (!p.statusSince) return null;
@@ -437,22 +444,43 @@ function RoundsTab({ product }: { product: Product }) {
                   </span>
                 </div>
                 {r.photos > 0 && (
-                  <div className="flex gap-2">
-                    {Array.from({ length: Math.min(r.photos, 4) }).map((_, i) => (
-                      <div key={i} className="size-12 overflow-hidden rounded-md border">
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: Math.min(r.photos, 6) }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-square overflow-hidden rounded-md border"
+                      >
                         <Thumb seed={`${product.seed}-r${r.round}-${i}`} />
                       </div>
                     ))}
                   </div>
                 )}
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <div>
-                    <p className="text-[11px] font-medium text-ink-faint">Revision notes</p>
-                    <p className="text-sm text-ink-soft">{r.revisionNotes}</p>
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                      Revision notes
+                    </p>
+                    <ul className="space-y-1">
+                      {bullets(r.revisionNotes).map((b, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-ink-soft">
+                          <span className="mt-1.5 size-1 shrink-0 rounded-full bg-ink-faint" />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                   <div>
-                    <p className="text-[11px] font-medium text-ink-faint">Changed vs. previous</p>
-                    <p className="text-sm text-ink-soft">{r.changedVsPrevious}</p>
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                      Changed vs. previous
+                    </p>
+                    <ul className="space-y-1">
+                      {bullets(r.changedVsPrevious).map((b, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-ink-soft">
+                          <span className="mt-1.5 size-1 shrink-0 rounded-full bg-accent/60" />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
