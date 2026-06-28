@@ -493,6 +493,11 @@ export default function SamplesPage() {
           {selected && (
             <ProductDetail
               product={products.find((p) => p.id === selected.id) ?? selected}
+              onUpdate={(patch) =>
+                setProducts((prev) =>
+                  prev.map((p) => (p.id === selected.id ? { ...p, ...patch } : p)),
+                )
+              }
             />
           )}
         </SheetContent>

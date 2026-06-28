@@ -57,6 +57,17 @@ export interface SampleRound {
   changedVsPrevious: string;
 }
 
+export type CandidateStatus = "Quoted" | "Sampling" | "Awarded" | "Passed";
+
+/** One factory being sourced for a product, with its own sample rounds. */
+export interface SampleCandidate {
+  manufacturerId: string;
+  status: CandidateStatus;
+  rating?: number; // 0–5, the team's sample quality rating
+  notes?: string;
+  rounds: SampleRound[];
+}
+
 export interface ActivityEntry {
   id: string;
   who: string;
@@ -92,6 +103,8 @@ export interface Product {
   retailPrice?: number;
   /** ISO date the product entered its current status (for time-in-stage). */
   statusSince?: string;
+  /** Factories being sourced for this product (multi-factory sampling). */
+  candidates?: SampleCandidate[];
   /** Whether a digital mockup exists yet (concepts without one show no image). */
   hasMockup?: boolean;
   rounds: SampleRound[];

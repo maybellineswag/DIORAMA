@@ -265,6 +265,13 @@ export function manufacturer(id: string | null): Manufacturer | undefined {
   return MANUFACTURERS.find((m) => m.id === id);
 }
 
+/** Factories that can make a given product type (for sourcing comparison). */
+export function capableManufacturers(type: string): Manufacturer[] {
+  return MANUFACTURERS.filter((m) =>
+    m.capabilities.some((c) => c.product === type),
+  );
+}
+
 // ── Sample-tracker products ──────────────────────────────────
 const A = (id: string, who: string, action: string, at: string) => ({ id, who, action, at });
 
@@ -330,6 +337,27 @@ export const PRODUCTS: Product[] = [
     statusSince: "2026-03-14",
     retailPrice: 45,
     image: "/products/tee.webp",
+    candidates: [
+      {
+        manufacturerId: "mf-porto",
+        status: "Awarded",
+        rating: 4.5,
+        notes: "Best hand-feel, GOTS-certified cotton. Awarded production.",
+        rounds: [
+          { round: 1, dateSent: "2026-02-10", dateReceived: "2026-02-24", photos: 3, revisionNotes: "Neck rib slightly loose.", changedVsPrevious: "Initial sample." },
+          { round: 2, dateSent: "2026-03-01", dateReceived: "2026-03-12", photos: 4, revisionNotes: "Approved for production.", changedVsPrevious: "Tighter neck rib, pre-shrunk body." },
+        ],
+      },
+      {
+        manufacturerId: "mf-hangzhou",
+        status: "Passed",
+        rating: 3.5,
+        notes: "~20% cheaper but fabric read thinner than spec; neck rib inconsistent.",
+        rounds: [
+          { round: 1, dateSent: "2026-02-12", dateReceived: "2026-02-27", photos: 2, revisionNotes: "Fabric too light vs. spec.", changedVsPrevious: "Initial sample." },
+        ],
+      },
+    ],
     moq: 150,
     pricePerUnit: 9.8,
     bulkPrice: 7.2,
@@ -438,6 +466,23 @@ export const PRODUCTS: Product[] = [
     statusSince: "2026-06-20",
     retailPrice: 130,
     image: "/products/sweater.webp",
+    candidates: [
+      {
+        manufacturerId: "mf-istanbul",
+        status: "Sampling",
+        rating: 4,
+        notes: "Round 1 in transit — heavy-gauge specialist.",
+        rounds: [
+          { round: 1, dateSent: "2026-06-20", dateReceived: null, photos: 0, revisionNotes: "In transit.", changedVsPrevious: "Initial 7-gauge sample." },
+        ],
+      },
+      {
+        manufacturerId: "mf-hangzhou",
+        status: "Quoted",
+        notes: "Quote received — sample not ordered yet. Slightly cheaper, lighter gauge.",
+        rounds: [],
+      },
+    ],
     moq: 120,
     pricePerUnit: 26.0,
     bulkPrice: 19.5,

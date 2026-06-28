@@ -11,12 +11,17 @@ import {
   Paperclip,
   Download,
   Folder,
+  Star,
+  Check,
+  Clock,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import type { Product } from "@/lib/mock/types";
-import { manufacturer, TRACKS, ASSETS } from "@/lib/mock/data";
-import { computeCosting, defaultInputs } from "@/lib/costing";
+import type { Product, SampleCandidate } from "@/lib/mock/types";
+import { manufacturer, capableManufacturers, TRACKS, ASSETS } from "@/lib/mock/data";
+import { computeCosting, defaultInputs, manufacturerQuote, landed } from "@/lib/costing";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { PriorityBadge, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Badge } from "@/components/ui/badge";
@@ -130,8 +135,21 @@ function CostingTab({ product }: { product: Product }) {
     </div>
   );
 
+  const srcMf = manufacturer(product.manufacturerId);
+  const fromQuote = !!manufacturerQuote(product, product.manufacturerId);
+
   return (
     <div className="space-y-5">
+      {fromQuote && srcMf && (
+        <Link
+          href="/manufacturers"
+          className="flex items-center gap-1 text-xs text-ink-faint hover:text-ink-soft"
+        >
+          Production &amp; freight from{" "}
+          <span className="text-accent-ink">{srcMf.name}</span>
+          <ArrowRight className="size-3" />
+        </Link>
+      )}
       <div className="grid grid-cols-2 gap-x-4 gap-y-4">
         <Field label="Production / unit">{cur(c.production)}</Field>
         {num("Freight / unit", inp.freight, (v) => setInp({ ...inp, freight: v }), "$")}
@@ -188,7 +206,249 @@ function CostingTab({ product }: { product: Product }) {
   );
 }
 
-export function ProductDetail({ product }: { product: Product }) {
+/** Candidates to source from: stored list, or a single derived from the assignee. */
+function candidatesOf(p: Product): SampleCandidate[] {
+  if (p.candidates?.length) return p.candidates;
+  if (p.manufacturerId)
+    return [{ manufacturerId: p.manufacturerId, status: "Sampling", rounds: p.rounds }];
+  return [];
+}
+
+function Stars({ n }: { n?: number }) {
+  if (!n) return <span className="text-xs text-ink-faint">Not rated</span>;
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={cn("size-3.5", i <= Math.round(n) ? "fill-warn text-warn" : "text-ink-faint/40")}
+        />
+      ))}
+    </span>
+  );
+}
+
+const CAND_VARIANT: Record<string, "good" | "accent" | "warn" | "default"> = {
+  Awarded: "good",
+  Sampling: "accent",
+  Quoted: "warn",
+  Passed: "default",
+};
+
+/** Sourcing — compare every factory that can make this type, then award one. */
+function SourcingTab({
+  product,
+  onUpdate,
+}: {
+  product: Product;
+  onUpdate?: (patch: Partial<Product>) => void;
+}) {
+  const factories = capableManufacturers(product.type);
+  const retail = product.retailPrice ?? defaultInputs(product).retail;
+  const candById = new Map((product.candidates ?? []).map((c) => [c.manufacturerId, c]));
+
+  if (factories.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+        <Factory className="size-6 text-ink-faint" />
+        <p className="text-sm text-ink-soft">No factories make {product.type} yet</p>
+        <p className="text-xs text-ink-faint">
+          Add a capability to a manufacturer to compare quotes here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-ink-faint">
+        Every factory that can make this {product.type.toLowerCase()} — compare landed
+        cost &amp; margin, then award the winner.
+      </p>
+      {factories.map((mf) => {
+        const q = manufacturerQuote(product, mf.id);
+        const cost = q ? landed(q.production, q.freight, 12, retail) : null;
+        const cand = candById.get(mf.id);
+        const cap = mf.capabilities.find((c) => c.product === product.type);
+        const awarded = product.manufacturerId === mf.id;
+        return (
+          <div
+            key={mf.id}
+            className={cn(
+              "rounded-lg border p-3.5",
+              awarded ? "border-good/40 bg-good-soft/20" : "bg-surface-2/40",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">{mf.flag}</span>
+              <span className="flex-1 truncate text-sm font-medium">{mf.name}</span>
+              {awarded ? (
+                <Badge variant="good"><Check className="size-3" /> Awarded</Badge>
+              ) : cand ? (
+                <Badge variant={CAND_VARIANT[cand.status]}>{cand.status}</Badge>
+              ) : (
+                <Badge variant="outline">Capable</Badge>
+              )}
+            </div>
+
+            {cost && (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                <div>
+                  <p className="text-xs text-ink-faint">Unit</p>
+                  <p className="tabular">{cur(cost.production)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink-faint">Landed</p>
+                  <p className="tabular">{cur(cost.landed)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink-faint">Margin</p>
+                  <p className={cn("tabular font-medium", cost.marginPct >= 0 ? "text-good" : "text-danger")}>
+                    {cost.marginPct.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-xs text-ink-faint">
+                {cap && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="size-3" />
+                    {cap.sampleLeadDays}d / {cap.bulkLeadDays}d
+                  </span>
+                )}
+                {cand && cand.rounds.length > 0 && (
+                  <span>· {cand.rounds.length} round{cand.rounds.length > 1 ? "s" : ""}</span>
+                )}
+              </span>
+              <Stars n={cand?.rating} />
+            </div>
+
+            {cand?.notes && <p className="mt-2 text-xs text-ink-soft">{cand.notes}</p>}
+
+            {!awarded && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3 w-full"
+                onClick={() => {
+                  onUpdate?.({ manufacturerId: mf.id });
+                  toast.success(`Awarded production to ${mf.name}`);
+                }}
+              >
+                Award production
+              </Button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RoundsTab({ product }: { product: Product }) {
+  const cands = candidatesOf(product);
+  const [sel, setSel] = React.useState(
+    () =>
+      (cands.find((c) => c.manufacturerId === product.manufacturerId) ?? cands[0])
+        ?.manufacturerId ?? "",
+  );
+  const cand = cands.find((c) => c.manufacturerId === sel) ?? cands[0];
+  const rounds = cand?.rounds ?? [];
+
+  return (
+    <div className="space-y-4">
+      {cands.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {cands.map((c) => {
+            const m = manufacturer(c.manufacturerId);
+            return (
+              <button
+                key={c.manufacturerId}
+                onClick={() => setSel(c.manufacturerId)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors cursor-pointer",
+                  sel === c.manufacturerId
+                    ? "border-accent/40 bg-accent-soft text-accent-ink"
+                    : "border-border text-ink-soft hover:bg-elevated/60",
+                )}
+              >
+                {m?.flag} {m?.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {rounds.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+          <ImageIcon className="size-6 text-ink-faint" />
+          <p className="text-sm text-ink-soft">No sample rounds yet</p>
+          <p className="text-xs text-ink-faint">
+            {cands.length > 1
+              ? `${manufacturer(sel)?.name ?? "This factory"} hasn't sampled yet.`
+              : "Rounds appear here once samples are sent."}
+          </p>
+        </div>
+      ) : (
+        <ol className="relative space-y-6 border-l pl-6">
+          {rounds.map((r) => (
+            <li key={r.round} className="relative">
+              <span className="absolute -left-[31px] flex size-5 items-center justify-center rounded-full border bg-surface text-[10px] font-medium">
+                {r.round}
+              </span>
+              <div className="space-y-3 rounded-lg border bg-surface-2/40 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Round {r.round}</p>
+                  <span className="flex items-center gap-1 text-xs text-ink-faint">
+                    <Calendar className="size-3" /> Sent {r.dateSent ?? "—"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <span className="text-ink-faint">
+                    Received:{" "}
+                    <span className="text-ink-soft">{r.dateReceived ?? "In transit"}</span>
+                  </span>
+                  <span className="text-ink-faint">
+                    Photos: <span className="text-ink-soft">{r.photos}</span>
+                  </span>
+                </div>
+                {r.photos > 0 && (
+                  <div className="flex gap-2">
+                    {Array.from({ length: Math.min(r.photos, 4) }).map((_, i) => (
+                      <div key={i} className="size-12 overflow-hidden rounded-md border">
+                        <Thumb seed={`${product.seed}-r${r.round}-${i}`} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[11px] font-medium text-ink-faint">Revision notes</p>
+                    <p className="text-sm text-ink-soft">{r.revisionNotes}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-ink-faint">Changed vs. previous</p>
+                    <p className="text-sm text-ink-soft">{r.changedVsPrevious}</p>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+export function ProductDetail({
+  product,
+  onUpdate,
+}: {
+  product: Product;
+  onUpdate?: (patch: Partial<Product>) => void;
+}) {
   const mf = manufacturer(product.manufacturerId);
 
   return (
@@ -226,16 +486,10 @@ export function ProductDetail({ product }: { product: Product }) {
           <TabsList className="w-full">
             <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
             <TabsTrigger value="costing" className="flex-1">Costing</TabsTrigger>
-            <TabsTrigger value="rounds" className="flex-1">
-              Rounds
-              {product.rounds.length > 0 && (
-                <Badge variant="outline" className="ml-1 px-1">
-                  {product.rounds.length}
-                </Badge>
-              )}
-            </TabsTrigger>
+            <TabsTrigger value="sourcing" className="flex-1">Sourcing</TabsTrigger>
+            <TabsTrigger value="rounds" className="flex-1">Rounds</TabsTrigger>
             <TabsTrigger value="files" className="flex-1">Files</TabsTrigger>
-            <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1">Log</TabsTrigger>
           </TabsList>
         </div>
 
@@ -302,84 +556,14 @@ export function ProductDetail({ product }: { product: Product }) {
             <CostingTab product={product} />
           </TabsContent>
 
-          {/* Rounds timeline */}
+          {/* Sourcing — multi-factory compare + award */}
+          <TabsContent value="sourcing" className="mt-0">
+            <SourcingTab product={product} onUpdate={onUpdate} />
+          </TabsContent>
+
+          {/* Rounds — per candidate factory */}
           <TabsContent value="rounds" className="mt-0">
-            {product.rounds.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                <ImageIcon className="size-6 text-ink-faint" />
-                <p className="text-sm text-ink-soft">No sample rounds yet</p>
-                <p className="text-xs text-ink-faint">
-                  Rounds appear here once samples are sent.
-                </p>
-              </div>
-            ) : (
-              <ol className="relative space-y-6 border-l pl-6">
-                {product.rounds.map((r) => (
-                  <li key={r.round} className="relative">
-                    <span className="absolute -left-[31px] flex size-5 items-center justify-center rounded-full border bg-surface text-[10px] font-medium">
-                      {r.round}
-                    </span>
-                    <div className="space-y-3 rounded-lg border bg-surface-2/40 p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">Round {r.round}</p>
-                        <div className="flex items-center gap-3 text-xs text-ink-faint">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="size-3" /> Sent {r.dateSent ?? "—"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <span className="text-ink-faint">
-                          Received:{" "}
-                          <span className="text-ink-soft">
-                            {r.dateReceived ?? "In transit"}
-                          </span>
-                        </span>
-                        <span className="text-ink-faint">
-                          Photos:{" "}
-                          <span className="text-ink-soft">{r.photos}</span>
-                        </span>
-                      </div>
-
-                      {r.photos > 0 && (
-                        <div className="flex gap-2">
-                          {Array.from({ length: Math.min(r.photos, 4) }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="size-12 overflow-hidden rounded-md border"
-                            >
-                              <Thumb seed={`${product.seed}-r${r.round}-${i}`} />
-                            </div>
-                          ))}
-                          {r.photos > 4 && (
-                            <div className="flex size-12 items-center justify-center rounded-md border bg-surface-2 text-xs text-ink-faint">
-                              +{r.photos - 4}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-[11px] font-medium text-ink-faint">
-                            Revision notes
-                          </p>
-                          <p className="text-sm text-ink-soft">{r.revisionNotes}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-ink-faint">
-                            Changed vs. previous
-                          </p>
-                          <p className="text-sm text-ink-soft">
-                            {r.changedVsPrevious}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <RoundsTab product={product} />
           </TabsContent>
 
           {/* Files — grouped by kind, with a jump to the full folder in Assets */}
