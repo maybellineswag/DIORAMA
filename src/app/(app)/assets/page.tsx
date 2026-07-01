@@ -49,6 +49,7 @@ import {
   LIBRARY_ASSETS,
   LIBRARY_CATEGORIES,
   piecesUsing,
+  registerAsset,
   type Piece,
   type SlotKey,
 } from "@/lib/mock/library";
@@ -104,28 +105,36 @@ function AssetCard({
   selected?: boolean;
 }) {
   const uses = piecesUsing(PIECES, asset.id).length;
+  const [peek, setPeek] = React.useState(false);
   return (
     <div
       data-select-id={asset.id}
       onClick={onOpen}
       onContextMenu={onContextMenu}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer",
+        "group relative flex flex-col rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer",
         selected ? "border-accent ring-2 ring-accent/40" : "",
       )}
     >
-      {/* Finder-style Quick View button */}
+      {/* Finder-style Quick View — hover to peek a larger preview */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen();
-        }}
+        onMouseEnter={() => setPeek(true)}
+        onMouseLeave={() => setPeek(false)}
+        onClick={(e) => e.stopPropagation()}
         title="Quick Look"
         className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-md bg-paper/80 text-ink-soft opacity-0 backdrop-blur transition-opacity hover:text-foreground group-hover:opacity-100 cursor-pointer"
       >
         <Eye className="size-4" />
       </button>
-      <div className="aspect-square overflow-hidden">
+      {peek && (
+        <div className="pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-56 rounded-xl border bg-popover p-2 shadow-xl">
+          <div className="aspect-square overflow-hidden rounded-lg border">
+            <AssetTile asset={asset} className="size-full" />
+          </div>
+          <p className="mt-1.5 truncate px-0.5 text-xs font-medium">{asset.name}</p>
+        </div>
+      )}
+      <div className="aspect-square overflow-hidden rounded-t-xl">
         <AssetTile asset={asset} className="size-full" />
       </div>
       <div className="p-3">
@@ -155,7 +164,10 @@ export default function AssetsPage() {
     { mode: "new" | "rename"; value: string; original?: string } | null
   >(null);
   const [localAssets, setLocalAssets] = React.useState<Asset[]>([]);
-  const [newPiece, setNewPiece] = React.useState<{ name: string; collection: string } | null>(null);
+  const [newPiece, setNewPiece] = React.useState<
+    { name: string; collection: string; mockup?: string } | null
+  >(null);
+  const mockupInput = React.useRef<HTMLInputElement>(null);
   const uploadInput = React.useRef<HTMLInputElement>(null);
 
   const pieces = React.useSyncExternalStore(subscribePieces, piecesSnapshot, piecesSnapshot);
@@ -240,17 +252,36 @@ export default function AssetsPage() {
   const createPiece = () => {
     if (!newPiece || !newPiece.name.trim()) return;
     const id = `pc-${Date.now().toString(36)}`;
-    const emptySlots = SLOTS.reduce(
+    const slots = SLOTS.reduce(
       (o, s) => ({ ...o, [s]: [] as string[] }),
       {} as Record<SlotKey, string[]>,
     );
+    // A mockup added at creation becomes a real asset in the Mockup slot.
+    if (newPiece.mockup) {
+      const mockId = `up-mock-${id}`;
+      registerAsset({
+        id: mockId,
+        name: `${newPiece.name.trim()} — Mockup`,
+        category: "Templates",
+        fileType: "PNG",
+        collection: newPiece.collection.trim() || "Unassigned",
+        productType: "Mockup",
+        season: "—",
+        size: "—",
+        updated: new Date().toISOString().slice(0, 10),
+        seed: mockId,
+        src: newPiece.mockup,
+      });
+      slots.Mockup = [mockId];
+    }
     addPiece({
       id,
       name: newPiece.name.trim(),
       seed: id,
+      image: newPiece.mockup,
       collection: newPiece.collection.trim() || "Unassigned",
       drop: "—",
-      slots: emptySlots,
+      slots,
     });
     setNewPiece(null);
     router.push(`/assets/${id}`);
@@ -563,6 +594,42 @@ export default function AssetsPage() {
                   <option key={c} value={c} />
                 ))}
               </datalist>
+            </div>
+            <div className="space-y-2">
+              <Label>Mockup</Label>
+              <input
+                ref={mockupInput}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () =>
+                    setNewPiece((p) => (p ? { ...p, mockup: reader.result as string } : p));
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                onClick={() => mockupInput.current?.click()}
+                className="flex w-full items-center gap-3 rounded-lg border border-dashed p-2.5 text-left transition-colors hover:border-accent/50 cursor-pointer"
+              >
+                <span className="size-12 shrink-0 overflow-hidden rounded-md border bg-surface-2">
+                  {newPiece?.mockup ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={newPiece.mockup} alt="" className="size-full object-cover" />
+                  ) : (
+                    <span className="flex size-full items-center justify-center text-ink-faint">
+                      <Upload className="size-4" />
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-ink-soft">
+                  {newPiece?.mockup ? "Mockup added — click to replace" : "Add a mockup image"}
+                </span>
+              </button>
             </div>
           </div>
           <DialogFooter>

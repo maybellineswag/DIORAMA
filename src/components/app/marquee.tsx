@@ -5,13 +5,16 @@ import * as React from "react";
 /**
  * Finder-style marquee (drag-to-select) over children marked with
  * `data-select-id`. Attach `containerProps` to a `relative` wrapper and
- * render `overlay` inside it.
+ * render `overlay` inside it. Dragging can start anywhere (including on a
+ * card); a small threshold distinguishes a lasso from a click, and the
+ * click that would follow a drag is swallowed.
  */
 export function useMarquee() {
   const ref = React.useRef<HTMLDivElement>(null);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [rect, setRect] = React.useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const drag = React.useRef<{ x: number; y: number; base: Set<string> } | null>(null);
+  const drag = React.useRef<{ x: number; y: number; base: Set<string>; moved: boolean; pid: number } | null>(null);
+  const justDragged = React.useRef(false);
 
   const hit = (x: number, y: number, w: number, h: number) => {
     const ids: string[] = [];
@@ -32,18 +35,21 @@ export function useMarquee() {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const t = e.target as HTMLElement;
-    if (t.closest("[data-select-id], button, a, input")) return; // let items handle their own clicks
+    // Let real controls (buttons/links/inputs) handle their own interactions.
+    if (t.closest("button, a, input, textarea, [role='menuitem']")) return;
     const c = ref.current;
     if (!c) return;
     const cr = c.getBoundingClientRect();
     const additive = e.shiftKey || e.metaKey;
+    // Click on empty space clears the selection.
+    if (!additive && !t.closest("[data-select-id]")) setSelected(new Set());
     drag.current = {
       x: e.clientX - cr.left,
       y: e.clientY - cr.top,
       base: additive ? new Set(selected) : new Set(),
+      moved: false,
+      pid: e.pointerId,
     };
-    if (!additive) setSelected(new Set());
-    setRect({ x: drag.current.x, y: drag.current.y, w: 0, h: 0 });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -54,6 +60,11 @@ export function useMarquee() {
     const cr = c.getBoundingClientRect();
     const cx = e.clientX - cr.left;
     const cy = e.clientY - cr.top;
+    if (!d.moved && Math.abs(cx - d.x) + Math.abs(cy - d.y) < 5) return;
+    if (!d.moved) {
+      d.moved = true;
+      c.setPointerCapture?.(d.pid);
+    }
     const x = Math.min(d.x, cx);
     const y = Math.min(d.y, cy);
     const w = Math.abs(cx - d.x);
@@ -62,18 +73,29 @@ export function useMarquee() {
     setSelected(new Set([...d.base, ...hit(x, y, w, h)]));
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current;
     drag.current = null;
+    ref.current?.releasePointerCapture?.(e.pointerId);
+    if (d?.moved) justDragged.current = true;
     setRect(null);
   };
 
-  const overlay =
-    rect && (rect.w > 2 || rect.h > 2) ? (
-      <div
-        className="pointer-events-none absolute z-10 rounded-sm border border-accent/60 bg-accent/10"
-        style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
-      />
-    ) : null;
+  // Swallow the click that fires right after a lasso so it doesn't open a file.
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (justDragged.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      justDragged.current = false;
+    }
+  };
+
+  const overlay = rect ? (
+    <div
+      className="pointer-events-none absolute z-10 rounded-sm border border-accent/60 bg-accent/10"
+      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+    />
+  ) : null;
 
   const containerProps = {
     ref,
@@ -81,6 +103,7 @@ export function useMarquee() {
     onPointerMove,
     onPointerUp,
     onPointerLeave: onPointerUp,
+    onClickCapture,
   };
 
   return { selected, setSelected, overlay, containerProps };

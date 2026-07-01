@@ -37,8 +37,15 @@ export const LIBRARY_CATEGORIES = [
   "Templates",
 ] as const;
 
+// Assets created at runtime (e.g. a mockup uploaded when making a new piece)
+// so they resolve in slots and previews until a real backend exists.
+const runtimeAssets: Asset[] = [];
+export const registerAsset = (a: Asset) => {
+  if (!runtimeAssets.some((x) => x.id === a.id)) runtimeAssets.push(a);
+};
+
 export const assetById = (id: string): Asset | undefined =>
-  ASSETS.find((a) => a.id === id);
+  ASSETS.find((a) => a.id === id) ?? runtimeAssets.find((a) => a.id === id);
 
 const emptySlots = (): Record<SlotKey, string[]> => ({
   "Graphic Assets": [],
