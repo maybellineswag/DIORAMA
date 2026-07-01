@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Plus } from "lucide-react";
 
-const KEY = "diorama.mood.folderPositions.v1";
+const DEFAULT_KEY = "diorama.mood.folderPositions.v1";
 
 type Pos = Record<string, { x: number; y: number }>;
 
@@ -34,11 +34,15 @@ export function MoodFreeFolders({
   countFor,
   onOpen,
   onAdd,
+  storageKey = DEFAULT_KEY,
+  addLabel = "Add category",
 }: {
   categories: string[];
   countFor: (c: string) => number;
   onOpen: (c: string) => void;
   onAdd: () => void;
+  storageKey?: string;
+  addLabel?: string;
 }) {
   const cats = categories.filter((c) => c !== "All");
   const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats));
@@ -54,7 +58,7 @@ export function MoodFreeFolders({
   // Load saved positions once.
   React.useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(storageKey);
       if (raw) setPos((p) => ({ ...p, ...(JSON.parse(raw) as Pos) }));
     } catch {
       /* ignore */
@@ -78,7 +82,7 @@ export function MoodFreeFolders({
 
   const save = (next: Pos) => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(next));
+      localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
       /* ignore */
     }
@@ -152,7 +156,7 @@ export function MoodFreeFolders({
         <span className="flex h-[88px] w-28 items-center justify-center rounded-xl border-2 border-dashed">
           <Plus className="size-7" />
         </span>
-        <span className="text-sm">Add category</span>
+        <span className="text-sm">{addLabel}</span>
       </button>
     </div>
   );
