@@ -361,7 +361,14 @@ export default function AssetsPage() {
       {mode === "guides" ? (
         <GuidesView />
       ) : mode === "pieces" ? (
-        <div className="space-y-8">
+        <div
+          className="min-h-[60vh] space-y-8"
+          onContextMenu={(e) =>
+            openMenu(e, [
+              { label: "New piece", icon: Plus, onClick: () => setNewPiece({ name: "", collection: "" }) },
+            ])
+          }
+        >
           {Object.entries(byCollection).map(([collection, pieces]) => (
             <section key={collection}>
               <div className="mb-3 flex items-baseline gap-2">
@@ -418,7 +425,15 @@ export default function AssetsPage() {
               </div>
             </>
           ) : folder ? (
-            <>
+            <div
+              className="min-h-[60vh] space-y-4"
+              onContextMenu={(e) =>
+                openMenu(e, [
+                  { label: "Upload…", icon: Upload, onClick: () => uploadInput.current?.click() },
+                  { label: "New Folder", icon: FolderPlus, onClick: () => setFolderDialog({ mode: "new", value: "" }) },
+                ])
+              }
+            >
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setFolder(null)}>
                   <ArrowLeft className="size-4" /> Folders
@@ -437,7 +452,7 @@ export default function AssetsPage() {
                   ))}
                 </div>
               )}
-            </>
+            </div>
           ) : (
             /* Free draggable folders (positions persist), Finder-style */
             <div
