@@ -14,6 +14,7 @@ import {
   Star,
   Check,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -314,6 +315,72 @@ function buildVerdict(product: Product, rows: SourceRow[]): string | null {
   return parts.join(" ");
 }
 
+/** The step-by-step reasoning behind the verdict, so it's transparent. */
+function verdictReasoning(rows: SourceRow[], retail: number): { label: string; detail: string }[] {
+  const priced = rows.filter((r) => r.cost) as (SourceRow & {
+    cost: NonNullable<SourceRow["cost"]>;
+  })[];
+  if (priced.length < 2) return [];
+  const byLanded = [...priced].sort((a, b) => a.cost.landed - b.cost.landed);
+  const out: { label: string; detail: string }[] = [];
+
+  out.push({
+    label: "Landed cost",
+    detail: `${byLanded.map((r) => `${r.mf!.name} ${cur(r.cost.landed)}`).join(" · ")}. ${byLanded[0].mf!.name} is cheapest to land.`,
+  });
+
+  const shippy = priced.filter((r) => r.cost.freight / (r.cost.production || 1) > 0.12);
+  if (shippy.length) {
+    out.push({
+      label: "Shipping impact",
+      detail: `${shippy.map((r) => `${r.mf!.name} +${cur(r.cost.freight)}/unit`).join("; ")} — shipping narrows the apparent price gap.`,
+    });
+  }
+
+  out.push({
+    label: `Margin at ${cur(retail)} retail`,
+    detail: byLanded.map((r) => `${r.mf!.name} ${r.cost.marginPct.toFixed(0)}%`).join(" · "),
+  });
+
+  const rated = priced.filter((r) => r.cand?.rating);
+  if (rated.length) {
+    const best = [...rated].sort((a, b) => (b.cand!.rating ?? 0) - (a.cand!.rating ?? 0))[0];
+    out.push({
+      label: "Sample quality",
+      detail:
+        `${rated.map((r) => `${r.mf!.name} ${r.cand!.rating}★`).join(" · ")}.` +
+        (best.cand?.pros?.length ? ` ${best.mf!.name}: ${best.cand.pros.join(", ")}.` : ""),
+    });
+    const flagged = rated.filter((r) => r.cand?.cons?.length);
+    if (flagged.length) {
+      out.push({
+        label: "Watch-outs",
+        detail: flagged.map((r) => `${r.mf!.name} — ${r.cand!.cons!.join(", ")}`).join("; "),
+      });
+    }
+  }
+
+  const withCap = priced.filter((r) => r.cap);
+  if (withCap.length) {
+    const fastest = [...withCap].sort((a, b) => a.cap!.bulkLeadDays - b.cap!.bulkLeadDays)[0];
+    out.push({
+      label: "Lead time",
+      detail: `${withCap.map((r) => `${r.mf!.name} ${r.cap!.sampleLeadDays}d/${r.cap!.bulkLeadDays}d`).join(" · ")}. ${fastest.mf!.name} is fastest to bulk.`,
+    });
+  }
+
+  const sampled = priced.filter((r) => r.cand && r.cand.rounds.length > 0);
+  if (sampled.length) {
+    out.push({
+      label: "Sampling so far",
+      detail: sampled
+        .map((r) => `${r.mf!.name}: ${r.cand!.rounds.length} round${r.cand!.rounds.length > 1 ? "s" : ""}`)
+        .join(" · "),
+    });
+  }
+  return out;
+}
+
 /** Sourcing — AI verdict + side-by-side factory compare, then award one. */
 function SourcingTab({
   product,
@@ -325,6 +392,7 @@ function SourcingTab({
   const factories = capableManufacturers(product.type);
   const retail = product.retailPrice ?? defaultInputs(product).retail;
   const candById = new Map((product.candidates ?? []).map((c) => [c.manufacturerId, c]));
+  const [showWhy, setShowWhy] = React.useState(false);
 
   if (factories.length === 0) {
     return (
@@ -348,6 +416,7 @@ function SourcingTab({
     };
   });
   const verdict = buildVerdict(product, rows);
+  const reasoning = verdict ? verdictReasoning(rows, retail) : [];
   const tmpl = `108px repeat(${rows.length}, minmax(150px, 1fr))`;
 
   const Lbl = ({ children }: { children: React.ReactNode }) => (
@@ -362,6 +431,42 @@ function SourcingTab({
             <Sparkles className="size-3.5" /> AI verdict
           </div>
           <p className="text-sm leading-relaxed text-ink-soft">{verdict}</p>
+
+          {reasoning.length > 0 && (
+            <>
+              <button
+                onClick={() => setShowWhy((v) => !v)}
+                className="mt-2.5 flex items-center gap-1 text-xs font-medium text-accent-ink hover:underline cursor-pointer"
+              >
+                {showWhy ? "Hide the reasoning" : "How Diorama AI reached this"}
+                <ChevronDown
+                  className={cn("size-3.5 transition-transform", showWhy && "rotate-180")}
+                />
+              </button>
+
+              {showWhy && (
+                <div className="mt-3 space-y-2.5 border-t border-accent/20 pt-3">
+                  <p className="text-[11px] text-ink-faint">
+                    Diorama weighed every factory across cost, margin, quality, and speed
+                    — here&apos;s the working:
+                  </p>
+                  <ol className="space-y-2">
+                    {reasoning.map((r, i) => (
+                      <li key={r.label} className="flex gap-2.5">
+                        <span className="tabular mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-accent/20 text-[10px] font-medium text-accent-ink">
+                          {i + 1}
+                        </span>
+                        <p className="text-xs leading-relaxed text-ink-soft">
+                          <span className="font-medium text-foreground">{r.label}:</span>{" "}
+                          {r.detail}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
