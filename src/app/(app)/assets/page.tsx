@@ -16,7 +16,6 @@ import {
   Trash2,
   Copy,
   Info,
-  Eye,
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +26,6 @@ import { MoodFreeFolders } from "@/components/app/mood-free-folders";
 import { AssetTile } from "@/components/app/asset-tile";
 import { AssetQuickLook } from "@/components/app/asset-quicklook";
 import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
-import { useMarquee } from "@/components/app/marquee";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,44 +95,19 @@ function AssetCard({
   asset,
   onOpen,
   onContextMenu,
-  selected,
 }: {
   asset: Asset;
   onOpen: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
-  selected?: boolean;
 }) {
   const uses = piecesUsing(PIECES, asset.id).length;
-  const [peek, setPeek] = React.useState(false);
   return (
-    <div
-      data-select-id={asset.id}
+    <button
       onClick={onOpen}
       onContextMenu={onContextMenu}
-      className={cn(
-        "group relative flex flex-col rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer",
-        selected ? "border-accent ring-2 ring-accent/40" : "",
-      )}
+      className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
     >
-      {/* Finder-style Quick View — hover to peek a larger preview */}
-      <button
-        onMouseEnter={() => setPeek(true)}
-        onMouseLeave={() => setPeek(false)}
-        onClick={(e) => e.stopPropagation()}
-        title="Quick Look"
-        className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-md bg-paper/80 text-ink-soft opacity-0 backdrop-blur transition-opacity hover:text-foreground group-hover:opacity-100 cursor-pointer"
-      >
-        <Eye className="size-4" />
-      </button>
-      {peek && (
-        <div className="pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-56 rounded-xl border bg-popover p-2 shadow-xl">
-          <div className="aspect-square overflow-hidden rounded-lg border">
-            <AssetTile asset={asset} className="size-full" />
-          </div>
-          <p className="mt-1.5 truncate px-0.5 text-xs font-medium">{asset.name}</p>
-        </div>
-      )}
-      <div className="aspect-square overflow-hidden rounded-t-xl">
+      <div className="aspect-square overflow-hidden">
         <AssetTile asset={asset} className="size-full" />
       </div>
       <div className="p-3">
@@ -144,14 +117,13 @@ function AssetCard({
           {uses > 0 && <span className="text-[11px] text-ink-faint">used in {uses}</span>}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
 export default function AssetsPage() {
   const router = useRouter();
   const { openMenu, contextMenu } = useContextMenu();
-  const { selected, setSelected, overlay, containerProps } = useMarquee();
   const [mode, setMode] = React.useState<"pieces" | "library" | "guides">("pieces");
   const [selAsset, setSelAsset] = React.useState<Asset | null>(null);
   const [assetOpen, setAssetOpen] = React.useState(false);
@@ -189,27 +161,6 @@ export default function AssetsPage() {
     setSelAsset(a);
     setAssetOpen(true);
   };
-
-  // Spacebar opens Quick Look for a single selected file (Finder-style).
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || assetOpen) return;
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
-      if (selected.size === 1) {
-        const a = LIBRARY_ASSETS.find((x) => x.id === [...selected][0]);
-        if (a) {
-          e.preventDefault();
-          openAsset(a);
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selected, assetOpen]);
-
-  // Clear selection when the view changes.
-  React.useEffect(() => setSelected(new Set()), [folder, mode, libQuery, setSelected]);
 
   const countFor = (c: string) => allAssets.filter((a) => a.category === c).length;
 
@@ -460,13 +411,10 @@ export default function AssetsPage() {
           {searching ? (
             <>
               <p className="text-xs text-ink-faint">{searchResults.length} matches for “{libQuery}”</p>
-              <div className="relative" {...containerProps}>
-                {overlay}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {searchResults.map((a) => (
-                    <AssetCard key={a.id} asset={a} selected={selected.has(a.id)} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
-                  ))}
-                </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {searchResults.map((a) => (
+                  <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
+                ))}
               </div>
             </>
           ) : folder ? (
@@ -483,13 +431,10 @@ export default function AssetsPage() {
                   <p className="text-sm">This folder is empty.</p>
                 </div>
               ) : (
-                <div className="relative" {...containerProps}>
-                  {overlay}
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {folderItems.map((a) => (
-                      <AssetCard key={a.id} asset={a} selected={selected.has(a.id)} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
-                    ))}
-                  </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {folderItems.map((a) => (
+                    <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
+                  ))}
                 </div>
               )}
             </>
