@@ -265,6 +265,39 @@ function TableView({
 }
 
 // ── Gallery view ─────────────────────────────────────────────
+function GalleryCard({ p, onOpen }: { p: Product; onOpen: (p: Product) => void }) {
+  return (
+    <button onClick={() => onOpen(p)} className="group text-left cursor-pointer">
+      <div className="relative aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
+        {hasMockup(p) ? (
+          p.image ? (
+            <img src={p.image} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Thumb seed={p.seed} />
+          )
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-1 bg-surface-2 text-ink-faint">
+            <Lightbulb className="size-5" />
+            <span className="text-[11px]">Concept</span>
+          </div>
+        )}
+        <div className="absolute left-2 top-2">
+          <StatusBadge status={p.status} />
+        </div>
+      </div>
+      <div className="mt-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{p.name}</p>
+          <p className="text-xs text-ink-faint">{p.type}</p>
+        </div>
+        <div className="mt-0.5">
+          <PriorityDot priority={p.priority} />
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function GalleryView({
   products,
   onOpen,
@@ -272,37 +305,54 @@ function GalleryView({
   products: Product[];
   onOpen: (p: Product) => void;
 }) {
+  const [groupBy, setGroupBy] = React.useState<"collection" | "drop">("collection");
+
+  // Preserve first-seen order of groups.
+  const groups: { key: string; items: Product[] }[] = [];
+  for (const p of products) {
+    const key = (groupBy === "collection" ? p.collection : p.drop) || "Unassigned";
+    let g = groups.find((x) => x.key === key);
+    if (!g) {
+      g = { key, items: [] };
+      groups.push(g);
+    }
+    g.items.push(p);
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {products.map((p) => (
-        <button key={p.id} onClick={() => onOpen(p)} className="group text-left cursor-pointer">
-          <div className="relative aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
-            {hasMockup(p) ? (
-              p.image ? (
-                <img src={p.image} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <Thumb seed={p.seed} />
-              )
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-1 bg-surface-2 text-ink-faint">
-                <Lightbulb className="size-5" />
-                <span className="text-[11px]">Concept</span>
-              </div>
-            )}
-            <div className="absolute left-2 top-2">
-              <StatusBadge status={p.status} />
-            </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-ink-faint">Group by</span>
+        <div className="flex items-center gap-0.5 rounded-lg border bg-surface-2/60 p-0.5">
+          {(["collection", "drop"] as const).map((g) => (
+            <button
+              key={g}
+              onClick={() => setGroupBy(g)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-[13px] font-medium capitalize transition-colors cursor-pointer",
+                groupBy === g ? "bg-card text-foreground shadow-sm" : "text-ink-soft hover:text-foreground",
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {groups.map((g) => (
+        <section key={g.key} className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium">{g.key}</h3>
+            <span className="tabular flex size-5 items-center justify-center rounded-md bg-surface-hi text-[11px] text-ink-soft">
+              {g.items.length}
+            </span>
           </div>
-          <div className="mt-2 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{p.name}</p>
-              <p className="text-xs text-ink-faint">{p.type}</p>
-            </div>
-            <div className="mt-0.5">
-              <PriorityDot priority={p.priority} />
-            </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {g.items.map((p) => (
+              <GalleryCard key={p.id} p={p} onOpen={onOpen} />
+            ))}
           </div>
-        </button>
+        </section>
       ))}
     </div>
   );
