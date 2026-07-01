@@ -15,11 +15,22 @@ import {
   Check,
   Sparkles,
   ChevronDown,
+  Plus,
+  Trash2,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { Product, SampleCandidate } from "@/lib/mock/types";
-import { manufacturer, capableManufacturers, TRACKS, ASSETS } from "@/lib/mock/data";
+import type { Product, SampleCandidate, SampleRound, Priority } from "@/lib/mock/types";
+import {
+  manufacturer,
+  capableManufacturers,
+  TRACKS,
+  ALL_STATUSES,
+  COLLECTIONS,
+  PRODUCT_TYPES,
+  ASSETS,
+} from "@/lib/mock/data";
 import { computeCosting, defaultInputs, defaultFreight, manufacturerQuote, landed } from "@/lib/costing";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,18 +38,32 @@ import { PriorityBadge, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
 
-const money = (n: number) =>
-  n > 0
-    ? n.toLocaleString("en-US", { style: "currency", currency: "USD" })
-    : "—";
+const PRIORITIES: Priority[] = ["Urgent", "High", "Medium", "Low"];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -387,7 +412,7 @@ function SourcingTab({
   onUpdate,
 }: {
   product: Product;
-  onUpdate?: (patch: Partial<Product>) => void;
+  onUpdate?: (patch: Partial<Product>, action?: string) => void;
 }) {
   const factories = capableManufacturers(product.type);
   const retail = product.retailPrice ?? defaultInputs(product).retail;
@@ -572,7 +597,7 @@ function SourcingTab({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  onUpdate?.({ manufacturerId: r.mf!.id });
+                  onUpdate?.({ manufacturerId: r.mf!.id }, `awarded production to ${r.mf!.name}`);
                   toast.success(`Awarded production to ${r.mf!.name}`);
                 }}
               >
@@ -586,38 +611,184 @@ function SourcingTab({
   );
 }
 
-function RoundsTab({ product }: { product: Product }) {
+function AddRoundDialog({
+  open,
+  onOpenChange,
+  roundNumber,
+  factoryName,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  roundNumber: number;
+  factoryName: string;
+  onAdd: (r: SampleRound) => void;
+}) {
+  const [dateSent, setDateSent] = React.useState("2026-06-27");
+  const [photos, setPhotos] = React.useState(0);
+  const [notes, setNotes] = React.useState("");
+  const [changed, setChanged] = React.useState("");
+  const [processing, setProcessing] = React.useState(false);
+
+  const reset = () => {
+    setDateSent("2026-06-27");
+    setPhotos(0);
+    setNotes("");
+    setChanged("");
+  };
+
+  const autofill = () => {
+    setProcessing(true);
+    setTimeout(() => {
+      setNotes(
+        "Collar rib tightened; hem shortened ~1.5cm; dye lot warmer; embroidery re-centered.",
+      );
+      setChanged(
+        "Tighter collar rib; -1.5cm hem; new warmer dye lot; re-centered embroidery placement.",
+      );
+      setPhotos(4);
+      setProcessing(false);
+      toast.success("Pre-filled from revision techpack", {
+        description: "Diorama AI diffed it against the original techpack.",
+      });
+    }, 1100);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add round</DialogTitle>
+          <DialogDescription>
+            Round {roundNumber} · {factoryName}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg border border-dashed bg-surface-2/40 p-3">
+          <Label className="mb-2 text-xs text-ink-soft">
+            <Sparkles className="size-3.5 text-accent-ink" /> Auto-fill from a revision techpack
+          </Label>
+          <Button onClick={autofill} disabled={processing} variant="secondary" size="sm" className="w-full">
+            <Upload className="size-4" />
+            {processing ? "Diffing against original…" : "Upload revision techpack"}
+          </Button>
+          <p className="mt-1.5 text-[11px] text-ink-faint">
+            Diorama AI compares it to the original techpack and fills in what changed.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Date sent</Label>
+            <Input type="date" value={dateSent} onChange={(e) => setDateSent(e.target.value)} className="h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Photos</Label>
+            <Input type="number" value={photos} onChange={(e) => setPhotos(Number(e.target.value) || 0)} className="h-8" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Revision notes</Label>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Separate points with ; or ." className="min-h-20" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Changed vs. previous</Label>
+          <Textarea value={changed} onChange={(e) => setChanged(e.target.value)} placeholder="What changed since the last round" className="min-h-20" />
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              onAdd({
+                round: roundNumber,
+                dateSent: dateSent || null,
+                dateReceived: null,
+                photos,
+                revisionNotes: notes.trim() || "—",
+                changedVsPrevious: changed.trim() || "—",
+              });
+              reset();
+              onOpenChange(false);
+            }}
+          >
+            Add round
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RoundsTab({
+  product,
+  onUpdate,
+}: {
+  product: Product;
+  onUpdate?: (patch: Partial<Product>, action?: string) => void;
+}) {
   const cands = candidatesOf(product);
   const [sel, setSel] = React.useState(
     () =>
       (cands.find((c) => c.manufacturerId === product.manufacturerId) ?? cands[0])
         ?.manufacturerId ?? "",
   );
+  const [addOpen, setAddOpen] = React.useState(false);
   const cand = cands.find((c) => c.manufacturerId === sel) ?? cands[0];
   const rounds = cand?.rounds ?? [];
 
+  const addRound = (round: SampleRound) => {
+    const base = product.candidates ?? candidatesOf(product);
+    const next = base.map((c) =>
+      c.manufacturerId === sel ? { ...c, rounds: [...c.rounds, round] } : c,
+    );
+    onUpdate?.(
+      { candidates: next },
+      `added Round ${round.round} (${manufacturer(sel)?.name ?? "factory"})`,
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {cands.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {cands.map((c) => {
-            const m = manufacturer(c.manufacturerId);
-            return (
-              <button
-                key={c.manufacturerId}
-                onClick={() => setSel(c.manufacturerId)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors cursor-pointer",
-                  sel === c.manufacturerId
-                    ? "border-accent/40 bg-accent-soft text-accent-ink"
-                    : "border-border text-ink-soft hover:bg-elevated/60",
-                )}
-              >
-                {m?.flag} {m?.name}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        {cands.length > 1 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {cands.map((c) => {
+              const m = manufacturer(c.manufacturerId);
+              return (
+                <button
+                  key={c.manufacturerId}
+                  onClick={() => setSel(c.manufacturerId)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors cursor-pointer",
+                    sel === c.manufacturerId
+                      ? "border-accent/40 bg-accent-soft text-accent-ink"
+                      : "border-border text-ink-soft hover:bg-elevated/60",
+                  )}
+                >
+                  {m?.flag} {m?.name}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <span />
+        )}
+        {cand && (
+          <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setAddOpen(true)}>
+            <Plus className="size-4" /> Add round
+          </Button>
+        )}
+      </div>
+
+      {cand && (
+        <AddRoundDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          roundNumber={rounds.length + 1}
+          factoryName={manufacturer(sel)?.name ?? "Factory"}
+          onAdd={addRound}
+        />
       )}
 
       {rounds.length === 0 ? (
@@ -705,11 +876,14 @@ function RoundsTab({ product }: { product: Product }) {
 export function ProductDetail({
   product,
   onUpdate,
+  onDelete,
 }: {
   product: Product;
-  onUpdate?: (patch: Partial<Product>) => void;
+  onUpdate?: (patch: Partial<Product>, action?: string) => void;
+  onDelete?: () => void;
 }) {
   const mf = manufacturer(product.manufacturerId);
+  const patch = (p: Partial<Product>, action?: string) => onUpdate?.(p, action);
 
   return (
     <>
@@ -754,33 +928,76 @@ export function ProductDetail({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {/* Details */}
-          <TabsContent value="details" className="mt-0 space-y-6">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-              <Field label="Drop">
-                <Link
-                  href="/shopify"
-                  className="inline-flex items-center gap-1 text-accent-ink hover:underline"
+          {/* Details — editable */}
+          <TabsContent value="details" className="mt-0 space-y-5">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input value={product.name} onChange={(e) => patch({ name: e.target.value })} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={product.status}
+                  onValueChange={(v) =>
+                    patch({ status: v as Product["status"], statusSince: "2026-06-27" }, `changed status to ${v}`)
+                  }
                 >
-                  {product.drop}
-                  <ArrowRight className="size-3" />
-                </Link>
-              </Field>
-              <Field label="Collection">{product.collection}</Field>
-              <Field label="Type">{product.type}</Field>
-              <Field label="Priority">{product.priority}</Field>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Priority</Label>
+                <Select value={product.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select value={product.type} onValueChange={(v) => patch({ type: v })}>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Collection</Label>
+                <Select value={product.collection} onValueChange={(v) => patch({ collection: v })}>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {COLLECTIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="flex items-center justify-between">
+                  Drop
+                  <Link href="/shopify" className="inline-flex items-center gap-1 text-xs text-accent-ink hover:underline">
+                    View drop <ArrowRight className="size-3" />
+                  </Link>
+                </Label>
+                <Input value={product.drop} onChange={(e) => patch({ drop: e.target.value })} />
+              </div>
             </div>
 
             <Separator />
 
-            <div>
-              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink-faint">
+            <div className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
                 Manufacturing
               </p>
               {mf ? (
                 <Link
                   href={`/manufacturers?m=${mf.id}`}
-                  className="group mb-4 flex items-center gap-3 rounded-lg border bg-surface-2/50 p-3 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
+                  className="group flex items-center gap-3 rounded-lg border bg-surface-2/50 p-3 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
                 >
                   <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
                     <Factory className="size-4 text-ink-soft" />
@@ -794,21 +1011,42 @@ export function ProductDetail({
                   <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
                 </Link>
               ) : (
-                <p className="mb-4 text-sm text-ink-faint">
-                  No manufacturer assigned yet.
+                <p className="text-sm text-ink-faint">
+                  No factory awarded yet — pick one in the Sourcing tab.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                <Field label="MOQ">{product.moq.toLocaleString()} units</Field>
-                <Field label="Qty to order">
-                  {product.quantityToOrder > 0
-                    ? product.quantityToOrder.toLocaleString()
-                    : "—"}
-                </Field>
-                <Field label="Price / unit">{money(product.pricePerUnit)}</Field>
-                <Field label="Bulk price">{money(product.bulkPrice)}</Field>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                {(
+                  [
+                    ["MOQ", "moq"],
+                    ["Qty to order", "quantityToOrder"],
+                    ["Price / unit", "pricePerUnit"],
+                    ["Bulk price", "bulkPrice"],
+                    ["Retail price", "retailPrice"],
+                  ] as const
+                ).map(([label, key]) => (
+                  <div key={key} className="space-y-1.5">
+                    <Label>{label}</Label>
+                    <Input
+                      type="number"
+                      value={(product[key] as number | undefined) ?? 0}
+                      onChange={(e) => patch({ [key]: Number(e.target.value) || 0 } as Partial<Product>)}
+                      className="h-8"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
+
+            <Separator />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger hover:bg-danger-soft hover:text-danger"
+              onClick={() => onDelete?.()}
+            >
+              <Trash2 className="size-4" /> Delete product
+            </Button>
           </TabsContent>
 
           {/* Costing */}
@@ -823,7 +1061,7 @@ export function ProductDetail({
 
           {/* Rounds — per candidate factory */}
           <TabsContent value="rounds" className="mt-0">
-            <RoundsTab product={product} />
+            <RoundsTab product={product} onUpdate={onUpdate} />
           </TabsContent>
 
           {/* Files — grouped by kind, with a jump to the full folder in Assets */}

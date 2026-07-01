@@ -13,6 +13,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,13 +24,41 @@ import { PriorityDot, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CalendarView } from "@/components/app/calendar-view";
 import { quickMargin } from "@/lib/costing";
-import { PRODUCTS, TRACKS, STATUS_TONE, manufacturer } from "@/lib/mock/data";
+import {
+  PRODUCTS,
+  TRACKS,
+  STATUS_TONE,
+  ALL_STATUSES,
+  COLLECTIONS,
+  PRODUCT_TYPES,
+  manufacturer,
+} from "@/lib/mock/data";
 import { CALENDAR_EVENTS } from "@/lib/mock/commerce";
-import type { Product, SampleStatus, Track, Priority } from "@/lib/mock/types";
+import type { Product, SampleStatus, Track, Priority, ActivityEntry } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
+
+const TODAY_ISO = "2026-06-27";
+const PRIORITIES: Priority[] = ["Urgent", "High", "Medium", "Low"];
 
 type View = "board" | "table" | "gallery" | "calendar";
 
@@ -305,18 +334,22 @@ function GalleryView({
   products: Product[];
   onOpen: (p: Product) => void;
 }) {
-  const [groupBy, setGroupBy] = React.useState<"collection" | "drop">("collection");
+  const [groupBy, setGroupBy] = React.useState<"all" | "collection" | "drop">("all");
 
   // Preserve first-seen order of groups.
   const groups: { key: string; items: Product[] }[] = [];
-  for (const p of products) {
-    const key = (groupBy === "collection" ? p.collection : p.drop) || "Unassigned";
-    let g = groups.find((x) => x.key === key);
-    if (!g) {
-      g = { key, items: [] };
-      groups.push(g);
+  if (groupBy === "all") {
+    groups.push({ key: "", items: products });
+  } else {
+    for (const p of products) {
+      const key = (groupBy === "collection" ? p.collection : p.drop) || "Unassigned";
+      let g = groups.find((x) => x.key === key);
+      if (!g) {
+        g = { key, items: [] };
+        groups.push(g);
+      }
+      g.items.push(p);
     }
-    g.items.push(p);
   }
 
   return (
@@ -324,7 +357,7 @@ function GalleryView({
       <div className="flex items-center gap-2">
         <span className="text-xs text-ink-faint">Group by</span>
         <div className="flex items-center gap-0.5 rounded-lg border bg-surface-2/60 p-0.5">
-          {(["collection", "drop"] as const).map((g) => (
+          {(["all", "collection", "drop"] as const).map((g) => (
             <button
               key={g}
               onClick={() => setGroupBy(g)}
@@ -341,12 +374,14 @@ function GalleryView({
 
       {groups.map((g) => (
         <section key={g.key} className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium">{g.key}</h3>
-            <span className="tabular flex size-5 items-center justify-center rounded-md bg-surface-hi text-[11px] text-ink-soft">
-              {g.items.length}
-            </span>
-          </div>
+          {g.key && (
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium">{g.key}</h3>
+              <span className="tabular flex size-5 items-center justify-center rounded-md bg-surface-hi text-[11px] text-ink-soft">
+                {g.items.length}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {g.items.map((p) => (
               <GalleryCard key={p.id} p={p} onOpen={onOpen} />
@@ -358,10 +393,141 @@ function GalleryView({
   );
 }
 
+const slug = (s: string) =>
+  "p-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40);
+
+function AddProductDialog({
+  open,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreate: (p: Product) => void;
+}) {
+  const empty = {
+    name: "",
+    type: PRODUCT_TYPES[0],
+    collection: COLLECTIONS[0],
+    drop: "",
+    priority: "Medium" as Priority,
+    status: "Concept" as SampleStatus,
+  };
+  const [form, setForm] = React.useState(empty);
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const create = () => {
+    if (!form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    onCreate({
+      id: `${slug(form.name)}-${Date.now().toString(36)}`,
+      name: form.name.trim(),
+      type: form.type,
+      collection: form.collection,
+      drop: form.drop.trim() || "Unassigned",
+      priority: form.priority,
+      assigneeId: "m-sasha",
+      manufacturerId: null,
+      status: form.status,
+      seed: slug(form.name).slice(2),
+      moq: 0,
+      pricePerUnit: 0,
+      bulkPrice: 0,
+      quantityToOrder: 0,
+      statusSince: TODAY_ISO,
+      rounds: [],
+      files: [],
+      activity: [{ id: `a-${Date.now()}`, who: "Grisha Obolenskiy", action: "created product", at: "just now" }],
+    });
+    setForm(empty);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New product</DialogTitle>
+          <DialogDescription>Add a product to the pipeline.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="e.g. Reliquary Zip Hoodie"
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={form.type} onValueChange={(v) => set("type", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Priority</Label>
+              <Select value={form.priority} onValueChange={(v) => set("priority", v as Priority)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Collection</Label>
+              <Select value={form.collection} onValueChange={(v) => set("collection", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {COLLECTIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => set("status", v as SampleStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Drop</Label>
+            <Input
+              value={form.drop}
+              onChange={(e) => set("drop", e.target.value)}
+              placeholder="e.g. Drop 01 · Oct 2026"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={create}>Create product</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function SamplesPage() {
   const [products, setProducts] = React.useState<Product[]>(PRODUCTS);
   const [view, setView] = React.useState<View>("board");
   const [filter, setFilter] = React.useState<"All" | Track>("All");
+  const [query, setQuery] = React.useState("");
+  const [fCollection, setFCollection] = React.useState("all");
+  const [fType, setFType] = React.useState("all");
+  const [fPriority, setFPriority] = React.useState("all");
+  const [addOpen, setAddOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Product | null>(null);
   const [open, setOpen] = React.useState(false);
   const dragId = React.useRef<string | null>(null);
@@ -370,12 +536,20 @@ export default function SamplesPage() {
   const visibleTracks =
     filter === "All" ? TRACKS : TRACKS.filter((t) => t.track === filter);
 
-  const filteredProducts =
-    filter === "All"
-      ? products
-      : products.filter((p) =>
-          TRACKS.find((t) => t.track === filter)?.statuses.includes(p.status),
-        );
+  const filtered = products
+    .filter(
+      (p) =>
+        filter === "All" ||
+        TRACKS.find((t) => t.track === filter)?.statuses.includes(p.status),
+    )
+    .filter((p) => fCollection === "all" || p.collection === fCollection)
+    .filter((p) => fType === "all" || p.type === fType)
+    .filter((p) => fPriority === "all" || p.priority === fPriority)
+    .filter((p) =>
+      query.trim()
+        ? (p.name + p.type + p.collection).toLowerCase().includes(query.toLowerCase())
+        : true,
+    );
 
   const openProduct = (p: Product) => {
     setSelected(p);
@@ -394,13 +568,42 @@ export default function SamplesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const logEntry = (action: string): ActivityEntry => ({
+    id: `a-${Date.now()}`,
+    who: "Grisha Obolenskiy",
+    action,
+    at: "just now",
+  });
+
+  /** Patch a product and optionally record an activity-log entry. */
+  const applyPatch = (id: string, patch: Partial<Product>, action?: string) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, ...patch, activity: action ? [logEntry(action), ...p.activity] : p.activity }
+          : p,
+      ),
+    );
+  };
+
+  const deleteProduct = (id: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setOpen(false);
+    toast.success("Product deleted");
+  };
+
+  const createProduct = (p: Product) => {
+    setProducts((prev) => [p, ...prev]);
+    toast.success(`Created "${p.name}"`);
+  };
+
   const drop = (status: SampleStatus) => {
     const id = dragId.current;
     setDragOver(null);
     if (!id) return;
     const moved = products.find((p) => p.id === id);
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
     if (moved && moved.status !== status) {
+      applyPatch(id, { status, statusSince: TODAY_ISO }, `moved to ${status}`);
       toast.success(`Moved "${moved.name}"`, { description: `→ ${status}` });
     }
     dragId.current = null;
@@ -424,27 +627,67 @@ export default function SamplesPage() {
                   { id: "calendar", label: "Calendar", icon: CalendarDays },
                 ]}
               />
-              <Button size="sm">
+              <Button size="sm" onClick={() => setAddOpen(true)}>
                 <Plus className="size-4" /> New product
               </Button>
             </div>
           }
         />
-        <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-1 w-fit">
-          {TRACK_FILTERS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setFilter(t)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
-                filter === t
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-ink-soft hover:text-foreground",
-              )}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-1">
+            {TRACK_FILTERS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilter(t)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
+                  filter === t
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-ink-soft hover:text-foreground",
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative min-w-[180px] flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search products…"
+              className="h-9 pl-9"
+            />
+          </div>
+
+          <Select value={fCollection} onValueChange={setFCollection}>
+            <SelectTrigger size="sm" className="w-auto min-w-[130px]">
+              <SelectValue placeholder="Collection" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All collections</SelectItem>
+              {COLLECTIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={fType} onValueChange={setFType}>
+            <SelectTrigger size="sm" className="w-auto min-w-[110px]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              {PRODUCT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={fPriority} onValueChange={setFPriority}>
+            <SelectTrigger size="sm" className="w-auto min-w-[110px]">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -460,7 +703,7 @@ export default function SamplesPage() {
                 </div>
                 <div className="flex h-full gap-3">
                   {track.statuses.map((status) => {
-                    const cards = products.filter((p) => p.status === status);
+                    const cards = filtered.filter((p) => p.status === status);
                     return (
                       <div
                         key={status}
@@ -516,14 +759,14 @@ export default function SamplesPage() {
       {/* Table */}
       {view === "table" && (
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
-          <TableView products={filteredProducts} onOpen={openProduct} />
+          <TableView products={filtered} onOpen={openProduct} />
         </div>
       )}
 
       {/* Gallery */}
       {view === "gallery" && (
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">
-          <GalleryView products={filteredProducts} onOpen={openProduct} />
+          <GalleryView products={filtered} onOpen={openProduct} />
         </div>
       )}
 
@@ -543,15 +786,14 @@ export default function SamplesPage() {
           {selected && (
             <ProductDetail
               product={products.find((p) => p.id === selected.id) ?? selected}
-              onUpdate={(patch) =>
-                setProducts((prev) =>
-                  prev.map((p) => (p.id === selected.id ? { ...p, ...patch } : p)),
-                )
-              }
+              onUpdate={(patch, action) => applyPatch(selected.id, patch, action)}
+              onDelete={() => deleteProduct(selected.id)}
             />
           )}
         </SheetContent>
       </Sheet>
+
+      <AddProductDialog open={addOpen} onOpenChange={setAddOpen} onCreate={createProduct} />
     </div>
   );
 }
