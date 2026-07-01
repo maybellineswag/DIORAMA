@@ -57,6 +57,7 @@ export function MoodFreeFolders({
   addLabel = "Add category",
   scatter = false,
   toolbar = false,
+  onContext,
 }: {
   categories: string[];
   countFor: (c: string) => number;
@@ -66,6 +67,7 @@ export function MoodFreeFolders({
   addLabel?: string;
   scatter?: boolean;
   toolbar?: boolean;
+  onContext?: (c: string, e: React.MouseEvent) => void;
 }) {
   const cats = categories.filter((c) => c !== "All");
   const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats, scatter));
@@ -183,6 +185,7 @@ export function MoodFreeFolders({
               drag.current = { cat: c, sx: e.clientX, sy: e.clientY, ix: p.x, iy: p.y, moved: false };
               (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
             }}
+            onContextMenu={(e) => onContext?.(c, e)}
             style={{ left: p.x, top: p.y }}
             className={cn(
               "group absolute flex w-32 cursor-grab select-none flex-col items-center gap-1.5 rounded-xl p-2 active:cursor-grabbing",

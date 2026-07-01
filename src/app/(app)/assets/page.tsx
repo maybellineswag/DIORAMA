@@ -5,35 +5,40 @@ import { useRouter } from "next/navigation";
 import {
   Upload,
   Sparkles,
-  FileText,
-  Download,
   BookOpen,
   Boxes,
   Layers,
-  Maximize2,
-  ArrowRight,
   ArrowLeft,
+  ChevronRight,
+  FolderOpen,
+  FolderPlus,
+  Pencil,
+  Trash2,
+  Copy,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ViewSwitcher } from "@/components/app/view-switcher";
 import { MoodFreeFolders } from "@/components/app/mood-free-folders";
-import { AssetTile, isDoc, is3D } from "@/components/app/asset-tile";
+import { AssetTile } from "@/components/app/asset-tile";
+import { AssetQuickLook } from "@/components/app/asset-quicklook";
+import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
 import { Thumb } from "@/components/thumb";
-import { ThreeViewer } from "@/components/three-viewer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { GUIDES } from "@/lib/mock/data";
 import {
   PIECES,
@@ -44,110 +49,6 @@ import {
 } from "@/lib/mock/library";
 import type { Asset, Guide } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
-
-// ── Library asset preview (with Are.na-style backlinks) ──────
-function AssetPreview({
-  asset,
-  onOpenPiece,
-}: {
-  asset: Asset;
-  onOpenPiece: (p: Piece) => void;
-}) {
-  const [full, setFull] = React.useState(false);
-  const backlinks = piecesUsing(PIECES, asset.id);
-  const threeD = is3D(asset);
-  return (
-    <>
-      <SheetHeader>
-        <SheetTitle className="text-base">{asset.name}</SheetTitle>
-        <SheetDescription>{asset.category} · {asset.fileType}</SheetDescription>
-      </SheetHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <div className="relative aspect-square overflow-hidden rounded-xl border bg-surface-2">
-          {threeD ? (
-            <>
-              <ThreeViewer seed={asset.seed} className="size-full" />
-              <button
-                onClick={() => setFull(true)}
-                className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-md bg-paper/80 text-ink-soft backdrop-blur hover:text-foreground cursor-pointer"
-              >
-                <Maximize2 className="size-3.5" />
-              </button>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-paper/70 py-2 text-center text-xs text-ink-soft backdrop-blur">
-                Live 3D · drag to rotate · scroll to zoom
-              </div>
-            </>
-          ) : isDoc(asset.fileType) ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-ink-faint">
-              <FileText className="size-8" />
-              <span className="text-sm">{asset.fileType} document</span>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          ) : (
-            <Thumb seed={asset.seed} />
-          )}
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          <Badge variant="accent">{asset.category}</Badge>
-          <Badge variant="outline">{asset.fileType}</Badge>
-          <Badge variant="outline">{asset.season}</Badge>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
-          <div><p className="text-xs text-ink-faint">Collection</p><p>{asset.collection}</p></div>
-          <div><p className="text-xs text-ink-faint">Size</p><p>{asset.size}</p></div>
-          <div><p className="text-xs text-ink-faint">Updated</p><p>{asset.updated}</p></div>
-          <div><p className="text-xs text-ink-faint">Type</p><p>{asset.productType}</p></div>
-        </div>
-
-        <Separator className="my-5" />
-        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
-          Connected to {backlinks.length} piece{backlinks.length === 1 ? "" : "s"}
-        </p>
-        {backlinks.length === 0 ? (
-          <p className="text-sm text-ink-faint">Not used in any piece yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {backlinks.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => onOpenPiece(p)}
-                className="flex w-full items-center gap-3 rounded-lg border bg-surface-2/40 p-2.5 text-left transition-colors hover:border-ink-faint/40 cursor-pointer"
-              >
-                <span className="size-9 shrink-0 overflow-hidden rounded-md border">
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image} alt="" className="size-full object-cover" />
-                  ) : (
-                    <Thumb seed={p.seed} />
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{p.name}</p>
-                  <p className="truncate text-xs text-ink-faint">{p.collection}</p>
-                </div>
-                <ArrowRight className="size-4 text-ink-faint" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="border-t p-4">
-        <Button className="w-full"><Download className="size-4" /> Download</Button>
-      </div>
-
-      {threeD && (
-        <Dialog open={full} onOpenChange={setFull}>
-          <DialogContent className="h-[85vh] max-w-5xl overflow-hidden p-0">
-            <DialogTitle className="sr-only">{asset.name}</DialogTitle>
-            <ThreeViewer seed={asset.seed} className="size-full" />
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  );
-}
 
 function GuidesView() {
   const [active, setActive] = React.useState<Guide>(GUIDES[0]);
@@ -185,11 +86,20 @@ function GuidesView() {
 }
 
 /** A library asset card. */
-function AssetCard({ asset, onOpen }: { asset: Asset; onOpen: () => void }) {
+function AssetCard({
+  asset,
+  onOpen,
+  onContextMenu,
+}: {
+  asset: Asset;
+  onOpen: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
   const uses = piecesUsing(PIECES, asset.id).length;
   return (
     <button
       onClick={onOpen}
+      onContextMenu={onContextMenu}
       className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
     >
       <div className="aspect-square overflow-hidden">
@@ -208,13 +118,20 @@ function AssetCard({ asset, onOpen }: { asset: Asset; onOpen: () => void }) {
 
 export default function AssetsPage() {
   const router = useRouter();
+  const { openMenu, contextMenu } = useContextMenu();
   const [mode, setMode] = React.useState<"pieces" | "library" | "guides">("pieces");
   const [selAsset, setSelAsset] = React.useState<Asset | null>(null);
   const [assetOpen, setAssetOpen] = React.useState(false);
+  const [cats, setCats] = React.useState<string[]>(() =>
+    LIBRARY_CATEGORIES.filter((c) => c !== "All"),
+  );
   const [folder, setFolder] = React.useState<string | null>(null);
   const [libQuery, setLibQuery] = React.useState("");
+  const [folderDialog, setFolderDialog] = React.useState<
+    { mode: "new" | "rename"; value: string; original?: string } | null
+  >(null);
 
-  // Deep link: /assets?file=ID opens that asset's preview.
+  // Deep link: /assets?file=ID opens that asset's Quick Look.
   React.useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("file");
     const a = id && LIBRARY_ASSETS.find((x) => x.id === id);
@@ -232,6 +149,51 @@ export default function AssetsPage() {
   };
 
   const countFor = (c: string) => LIBRARY_ASSETS.filter((a) => a.category === c).length;
+
+  const submitFolder = () => {
+    if (!folderDialog) return;
+    const name = folderDialog.value.trim();
+    if (!name) return;
+    if (folderDialog.mode === "new") {
+      setCats((cs) => (cs.includes(name) ? cs : [...cs, name]));
+      toast.success(`Created folder “${name}”`);
+    } else if (folderDialog.original) {
+      const orig = folderDialog.original;
+      setCats((cs) => cs.map((c) => (c === orig ? name : c)));
+      setFolder((f) => (f === orig ? name : f));
+      toast.success("Folder renamed");
+    }
+    setFolderDialog(null);
+  };
+
+  const deleteFolder = (name: string) => {
+    setCats((cs) => cs.filter((c) => c !== name));
+    setFolder((f) => (f === name ? null : f));
+    toast.success(`Moved “${name}” to Trash`);
+  };
+
+  const folderMenu = (c: string): CtxItem[] => [
+    { label: "Open", icon: FolderOpen, onClick: () => setFolder(c) },
+    { label: "Get Info", icon: Info, onClick: () => toast.message(c, { description: `${countFor(c)} items` }) },
+    { label: "Rename…", icon: Pencil, onClick: () => setFolderDialog({ mode: "rename", value: c, original: c }) },
+    { label: "New Folder", icon: FolderPlus, onClick: () => setFolderDialog({ mode: "new", value: "" }) },
+    { type: "sep" },
+    { label: "Move to Trash", icon: Trash2, destructive: true, onClick: () => deleteFolder(c) },
+  ];
+
+  const assetMenu = (a: Asset): CtxItem[] => [
+    { label: "Open", icon: FolderOpen, onClick: () => openAsset(a) },
+    { label: "Get Info", icon: Info, onClick: () => openAsset(a) },
+    { label: "Copy", icon: Copy, onClick: () => toast.success(`Copied ${a.name}`) },
+    { type: "sep" },
+    { label: "Move to Trash", icon: Trash2, destructive: true, onClick: () => toast.success(`Moved ${a.name} to Trash`) },
+  ];
+
+  const pieceMenu = (p: Piece): CtxItem[] => [
+    { label: "Open", icon: FolderOpen, onClick: () => router.push(`/assets/${p.id}`) },
+    { label: "Rename…", icon: Pencil, onClick: () => toast.message("Rename is simulated in this prototype.") },
+    { label: "Duplicate", icon: Copy, onClick: () => toast.success(`Duplicated ${p.name}`) },
+  ];
 
   // Group pieces by collection for the Pieces view.
   const byCollection = PIECES.reduce<Record<string, Piece[]>>((acc, p) => {
@@ -268,6 +230,27 @@ export default function AssetsPage() {
         }
       />
 
+      {/* Finder-style path bar (library only) */}
+      {mode === "library" && !searching && (
+        <div className="flex items-center gap-1 text-sm">
+          <button
+            onClick={() => setFolder(null)}
+            className={cn(
+              "rounded px-1.5 py-0.5 transition-colors hover:bg-elevated cursor-pointer",
+              folder ? "text-ink-faint" : "font-medium",
+            )}
+          >
+            Library
+          </button>
+          {folder && (
+            <>
+              <ChevronRight className="size-3.5 text-ink-faint" />
+              <span className="rounded px-1.5 py-0.5 font-medium">{folder}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {mode === "guides" ? (
         <GuidesView />
       ) : mode === "pieces" ? (
@@ -285,6 +268,7 @@ export default function AssetsPage() {
                     <button
                       key={p.id}
                       onClick={() => router.push(`/assets/${p.id}`)}
+                      onContextMenu={(e) => openMenu(e, pieceMenu(p))}
                       className="group text-left cursor-pointer"
                     >
                       <div className="aspect-square overflow-hidden rounded-xl border transition-all group-hover:border-ink-faint/40 group-hover:shadow-md">
@@ -322,7 +306,7 @@ export default function AssetsPage() {
               <p className="text-xs text-ink-faint">{searchResults.length} matches for “{libQuery}”</p>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {searchResults.map((a) => (
-                  <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} />
+                  <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
                 ))}
               </div>
             </>
@@ -332,45 +316,87 @@ export default function AssetsPage() {
                 <Button variant="ghost" size="sm" onClick={() => setFolder(null)}>
                   <ArrowLeft className="size-4" /> Folders
                 </Button>
-                <span className="text-sm font-medium">{folder}</span>
-                <span className="text-xs text-ink-faint">{folderItems.length}</span>
+                <span className="text-xs text-ink-faint">{folderItems.length} items</span>
               </div>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {folderItems.map((a) => (
-                  <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} />
-                ))}
-              </div>
+              {folderItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-16 text-center text-ink-faint">
+                  <FolderOpen className="size-6" />
+                  <p className="text-sm">This folder is empty.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {folderItems.map((a) => (
+                    <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
+                  ))}
+                </div>
+              )}
             </>
           ) : (
-            /* Free draggable folders (positions persist) */
-            <MoodFreeFolders
-              categories={LIBRARY_CATEGORIES.filter((c) => c !== "All")}
-              countFor={countFor}
-              onOpen={(c) => setFolder(c)}
-              onAdd={() => toast.success("New library folder is simulated in this prototype.")}
-              storageKey="diorama.library.folderPositions.v1"
-              addLabel="New folder"
-              scatter
-              toolbar
-            />
+            /* Free draggable folders (positions persist), Finder-style */
+            <div
+              onContextMenu={(e) => {
+                e.preventDefault();
+                openMenu(e, [
+                  { label: "New Folder", icon: FolderPlus, onClick: () => setFolderDialog({ mode: "new", value: "" }) },
+                ]);
+              }}
+            >
+              <MoodFreeFolders
+                categories={cats}
+                countFor={countFor}
+                onOpen={(c) => setFolder(c)}
+                onAdd={() => setFolderDialog({ mode: "new", value: "" })}
+                onContext={(c, e) => openMenu(e, folderMenu(c))}
+                storageKey="diorama.library.folderPositions.v1"
+                addLabel="New folder"
+                scatter
+                toolbar
+              />
+            </div>
           )}
         </>
       )}
 
-      {/* Library asset preview */}
-      <Sheet open={assetOpen} onOpenChange={setAssetOpen}>
-        <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
-          {selAsset && (
-            <AssetPreview
-              asset={selAsset}
-              onOpenPiece={(p) => {
-                setAssetOpen(false);
-                router.push(`/assets/${p.id}`);
-              }}
+      {/* Rich Quick Look preview */}
+      <AssetQuickLook
+        open={assetOpen}
+        onOpenChange={setAssetOpen}
+        asset={selAsset ?? undefined}
+        backlinks={selAsset ? piecesUsing(PIECES, selAsset.id) : []}
+        onOpenPiece={(p) => {
+          setAssetOpen(false);
+          router.push(`/assets/${p.id}`);
+        }}
+      />
+
+      {/* New / rename folder dialog */}
+      <Dialog open={!!folderDialog} onOpenChange={(v) => !v && setFolderDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{folderDialog?.mode === "rename" ? "Rename folder" : "New folder"}</DialogTitle>
+            <DialogDescription>
+              {folderDialog?.mode === "rename" ? "Give this folder a new name." : "Create a new folder in the library."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="folder-name">Name</Label>
+            <Input
+              id="folder-name"
+              value={folderDialog?.value ?? ""}
+              onChange={(e) => setFolderDialog((d) => (d ? { ...d, value: e.target.value } : d))}
+              onKeyDown={(e) => e.key === "Enter" && submitFolder()}
+              placeholder="e.g. Trims"
+              autoFocus
             />
-          )}
-        </SheetContent>
-      </Sheet>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setFolderDialog(null)}>Cancel</Button>
+            <Button onClick={submitFolder}>{folderDialog?.mode === "rename" ? "Rename" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {contextMenu}
     </div>
   );
 }

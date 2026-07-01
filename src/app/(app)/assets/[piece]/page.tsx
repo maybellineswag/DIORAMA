@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,8 +11,8 @@ import {
   ClipboardPaste,
   Copy,
   CopyPlus,
-  Download,
   ExternalLink,
+  Eye,
   FileText,
   Plus,
   Scissors,
@@ -22,19 +22,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AssetTile, isDoc, is3D } from "@/components/app/asset-tile";
+import { AssetTile } from "@/components/app/asset-tile";
+import { AssetQuickLook } from "@/components/app/asset-quicklook";
+import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
 import { Thumb } from "@/components/thumb";
-import { ThreeViewer } from "@/components/three-viewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +41,7 @@ import {
   SLOTS,
   LIBRARY_ASSETS,
   assetById,
+  piecesUsing,
   type SlotKey,
 } from "@/lib/mock/library";
 import { cn } from "@/lib/utils";
@@ -166,6 +161,8 @@ function AddPicker({
 
 export default function PiecePage() {
   const params = useParams<{ piece: string }>();
+  const router = useRouter();
+  const { openMenu, contextMenu } = useContextMenu();
   const base = PIECES.find((p) => p.id === params.piece);
 
   const [slots, setSlots] = React.useState<Record<SlotKey, string[]> | null>(
@@ -236,6 +233,21 @@ export default function PiecePage() {
   const openUpload = (slot: SlotKey) => {
     uploadCtx.current = slot;
     fileInput.current?.click();
+  };
+
+  const rowMenu = (slot: SlotKey, id: string): CtxItem[] => {
+    const lib = assetById(id);
+    return [
+      { label: "Open", icon: Eye, onClick: () => setPreview(id) },
+      ...(lib
+        ? [{ label: "Open source", icon: ExternalLink, onClick: () => router.push(`/assets?file=${id}`) }]
+        : []),
+      { label: "Copy", icon: Copy, onClick: () => { setClipboard({ assetId: id }); toast.success("Copied"); } },
+      { label: "Cut", icon: Scissors, onClick: () => { setClipboard({ assetId: id, cut: slot }); toast.success("Cut — paste into a slot"); } },
+      { label: "Duplicate", icon: CopyPlus, onClick: () => addAsset(slot, id) },
+      { type: "sep" },
+      { label: "Remove", icon: X, destructive: true, onClick: () => removeAsset(slot, id) },
+    ];
   };
 
   return (
@@ -337,6 +349,7 @@ export default function PiecePage() {
                     return (
                       <div
                         key={`${id}-${idx}`}
+                        onContextMenu={(e) => openMenu(e, rowMenu(slot, id))}
                         className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2"
                       >
                         <button
@@ -427,53 +440,21 @@ export default function PiecePage() {
         }}
       />
 
-      {/* File preview */}
-      {(() => {
-        if (!preview) return null;
-        const up = uploads[preview];
-        const lib = assetById(preview);
-        const info = resolve(preview);
-        if (!info) return null;
-        return (
-          <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle className="truncate">{info.name}</DialogTitle>
-                <DialogDescription>{info.fileType} · {info.size}</DialogDescription>
-              </DialogHeader>
-              <div className="flex min-h-[320px] items-center justify-center overflow-hidden rounded-xl border bg-surface-2">
-                {up?.dataUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={up.dataUrl} alt="" className="max-h-[60vh] w-full object-contain" />
-                ) : lib && is3D(lib) ? (
-                  <ThreeViewer seed={lib.seed} className="h-[50vh] w-full" />
-                ) : lib && !isDoc(lib.fileType) ? (
-                  <div className="size-64 overflow-hidden rounded-lg">
-                    <AssetTile asset={lib} className="size-full" />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-16 text-ink-faint">
-                    <FileText className="size-9" />
-                    <span className="text-sm">{info.fileType} preview</span>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                {lib && (
-                  <Button asChild variant="ghost">
-                    <Link href={`/assets?file=${preview}`}>
-                      <ExternalLink className="size-4" /> Open source
-                    </Link>
-                  </Button>
-                )}
-                <Button onClick={() => toast.success("Download is simulated in this prototype.")}>
-                  <Download className="size-4" /> Download
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
+      {/* Rich Quick Look preview */}
+      <AssetQuickLook
+        open={!!preview}
+        onOpenChange={(v) => !v && setPreview(null)}
+        asset={preview ? assetById(preview) : undefined}
+        upload={preview ? uploads[preview] : undefined}
+        backlinks={preview && assetById(preview) ? piecesUsing(PIECES, preview) : []}
+        onOpenSource={
+          preview && assetById(preview)
+            ? () => router.push(`/assets?file=${preview}`)
+            : undefined
+        }
+      />
+
+      {contextMenu}
     </div>
   );
 }
