@@ -65,6 +65,9 @@ export interface SampleCandidate {
   status: CandidateStatus;
   rating?: number; // 0–5, the team's sample quality rating
   notes?: string;
+  /** What this factory did well / poorly on the sample (powers the AI verdict). */
+  pros?: string[];
+  cons?: string[];
   rounds: SampleRound[];
 }
 

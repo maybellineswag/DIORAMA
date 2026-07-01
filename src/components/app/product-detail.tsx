@@ -13,7 +13,7 @@ import {
   Folder,
   Star,
   Check,
-  Clock,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -264,7 +264,57 @@ const CAND_VARIANT: Record<string, "good" | "accent" | "warn" | "default"> = {
   Passed: "default",
 };
 
-/** Sourcing — compare every factory that can make this type, then award one. */
+interface SourceRow {
+  mf: ReturnType<typeof manufacturer>;
+  cost: ReturnType<typeof landed> | null;
+  cand?: SampleCandidate;
+  cap?: { sampleLeadDays: number; bulkLeadDays: number };
+}
+
+/** Nuanced, analyst-style read of the factory options. */
+function buildVerdict(product: Product, rows: SourceRow[]): string | null {
+  const priced = rows.filter((r) => r.cost) as (SourceRow & {
+    cost: NonNullable<SourceRow["cost"]>;
+  })[];
+  if (priced.length < 2) return null;
+
+  const byLanded = [...priced].sort((a, b) => a.cost.landed - b.cost.landed);
+  const cheapest = byLanded[0];
+  const rated = priced.filter((r) => r.cand?.rating);
+  const bestRated = rated.sort((a, b) => (b.cand!.rating ?? 0) - (a.cand!.rating ?? 0))[0];
+
+  const parts: string[] = [];
+  parts.push(
+    `${cheapest.mf!.name} is cheapest to land at ${cur(cheapest.cost.landed)}/unit (${cheapest.cost.marginPct.toFixed(0)}% margin)${
+      cheapest.cand?.cons?.length ? `, though ${cheapest.cand.cons[0].toLowerCase()}` : ""
+    }.`,
+  );
+  if (bestRated && bestRated.mf!.id !== cheapest.mf!.id) {
+    const diff = Math.round((bestRated.cost.landed / cheapest.cost.landed - 1) * 100);
+    parts.push(
+      `${bestRated.mf!.name} scored best on samples (${bestRated.cand!.rating}★)${
+        bestRated.cand?.pros?.length ? ` — ${bestRated.cand.pros[0].toLowerCase()}` : ""
+      }, but lands ~${diff}% pricier.`,
+    );
+  }
+  const shippy = [...priced].sort(
+    (a, b) => b.cost.freight / (b.cost.production || 1) - a.cost.freight / (a.cost.production || 1),
+  )[0];
+  if (shippy.cost.freight > 0 && shippy.cost.freight / (shippy.cost.production || 1) > 0.12) {
+    parts.push(
+      `On paper ${shippy.mf!.name} looks lean, but shipping adds ${cur(shippy.cost.freight)}/unit.`,
+    );
+  }
+  const awardedRow = rows.find((r) => r.mf!.id === product.manufacturerId);
+  parts.push(
+    awardedRow
+      ? `You've awarded ${awardedRow.mf!.name} — a sensible call for this drop.`
+      : `Recommendation: ${(bestRated ?? cheapest).mf!.name} is the best balance right now.`,
+  );
+  return parts.join(" ");
+}
+
+/** Sourcing — AI verdict + side-by-side factory compare, then award one. */
 function SourcingTab({
   product,
   onUpdate,
@@ -288,90 +338,145 @@ function SourcingTab({
     );
   }
 
+  const rows: SourceRow[] = factories.map((mf) => {
+    const q = manufacturerQuote(product, mf.id);
+    return {
+      mf,
+      cost: q ? landed(q.production, q.freight, 12, retail) : null,
+      cand: candById.get(mf.id),
+      cap: mf.capabilities.find((c) => c.product === product.type),
+    };
+  });
+  const verdict = buildVerdict(product, rows);
+  const tmpl = `108px repeat(${rows.length}, minmax(150px, 1fr))`;
+
+  const Lbl = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex items-center text-xs text-ink-faint">{children}</div>
+  );
+
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-ink-faint">
-        Every factory that can make this {product.type.toLowerCase()} — compare landed
-        cost &amp; margin, then award the winner.
-      </p>
-      {factories.map((mf) => {
-        const q = manufacturerQuote(product, mf.id);
-        const cost = q ? landed(q.production, q.freight, 12, retail) : null;
-        const cand = candById.get(mf.id);
-        const cap = mf.capabilities.find((c) => c.product === product.type);
-        const awarded = product.manufacturerId === mf.id;
-        return (
-          <div
-            key={mf.id}
-            className={cn(
-              "rounded-lg border p-3.5",
-              awarded ? "border-good/40 bg-good-soft/20" : "bg-surface-2/40",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-base">{mf.flag}</span>
-              <span className="flex-1 truncate text-sm font-medium">{mf.name}</span>
-              {awarded ? (
-                <Badge variant="good"><Check className="size-3" /> Awarded</Badge>
-              ) : cand ? (
-                <Badge variant={CAND_VARIANT[cand.status]}>{cand.status}</Badge>
-              ) : (
-                <Badge variant="outline">Capable</Badge>
-              )}
-            </div>
+    <div className="space-y-4">
+      {verdict && (
+        <div className="rounded-lg border bg-accent-soft/30 p-3.5">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-accent-ink">
+            <Sparkles className="size-3.5" /> AI verdict
+          </div>
+          <p className="text-sm leading-relaxed text-ink-soft">{verdict}</p>
+        </div>
+      )}
 
-            {cost && (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <p className="text-xs text-ink-faint">Unit</p>
-                  <p className="tabular">{cur(cost.production)}</p>
+      <div className="overflow-x-auto pb-1">
+        <div
+          className="grid items-start gap-x-3 gap-y-3"
+          style={{ gridTemplateColumns: tmpl, minWidth: 108 + rows.length * 150 }}
+        >
+          {/* header */}
+          <div />
+          {rows.map((r) => {
+            const awarded = product.manufacturerId === r.mf!.id;
+            return (
+              <div key={r.mf!.id} className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span>{r.mf!.flag}</span>
+                  <span className="truncate text-sm font-medium">{r.mf!.name}</span>
                 </div>
-                <div>
-                  <p className="text-xs text-ink-faint">Landed</p>
-                  <p className="tabular">{cur(cost.landed)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-ink-faint">Margin</p>
-                  <p className={cn("tabular font-medium", cost.marginPct >= 0 ? "text-good" : "text-danger")}>
-                    {cost.marginPct.toFixed(0)}%
-                  </p>
-                </div>
+                {awarded ? (
+                  <Badge variant="good"><Check className="size-3" /> Awarded</Badge>
+                ) : r.cand ? (
+                  <Badge variant={CAND_VARIANT[r.cand.status]}>{r.cand.status}</Badge>
+                ) : (
+                  <Badge variant="outline">Capable</Badge>
+                )}
               </div>
-            )}
+            );
+          })}
 
-            <div className="mt-3 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-xs text-ink-faint">
-                {cap && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="size-3" />
-                    {cap.sampleLeadDays}d / {cap.bulkLeadDays}d
-                  </span>
-                )}
-                {cand && cand.rounds.length > 0 && (
-                  <span>· {cand.rounds.length} round{cand.rounds.length > 1 ? "s" : ""}</span>
-                )}
-              </span>
-              <Stars n={cand?.rating} />
+          <Lbl>Unit</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="tabular text-sm">{r.cost ? cur(r.cost.production) : "—"}</div>
+          ))}
+
+          <Lbl>Shipping</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="tabular text-sm text-ink-soft">{r.cost ? cur(r.cost.freight) : "—"}</div>
+          ))}
+
+          <Lbl>Landed</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="tabular text-sm font-medium">{r.cost ? cur(r.cost.landed) : "—"}</div>
+          ))}
+
+          <Lbl>Margin</Lbl>
+          {rows.map((r) => (
+            <div
+              key={r.mf!.id}
+              className={cn("tabular text-sm font-medium", r.cost && r.cost.marginPct >= 0 ? "text-good" : "text-danger")}
+            >
+              {r.cost ? `${r.cost.marginPct.toFixed(0)}%` : "—"}
             </div>
+          ))}
 
-            {cand?.notes && <p className="mt-2 text-xs text-ink-soft">{cand.notes}</p>}
+          <Lbl>Lead (smpl/bulk)</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="tabular text-xs text-ink-soft">
+              {r.cap ? `${r.cap.sampleLeadDays}d / ${r.cap.bulkLeadDays}d` : "—"}
+            </div>
+          ))}
 
-            {!awarded && (
+          <Lbl>Quality</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id}><Stars n={r.cand?.rating} /></div>
+          ))}
+
+          <Lbl>Did well</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="flex flex-col gap-1">
+              {r.cand?.pros?.length
+                ? r.cand.pros.map((p) => (
+                    <span key={p} className="rounded bg-good-soft px-1.5 py-0.5 text-[11px] leading-tight text-good">
+                      {p}
+                    </span>
+                  ))
+                : <span className="text-xs text-ink-faint">—</span>}
+            </div>
+          ))}
+
+          <Lbl>Needs work</Lbl>
+          {rows.map((r) => (
+            <div key={r.mf!.id} className="flex flex-col gap-1">
+              {r.cand?.cons?.length
+                ? r.cand.cons.map((c) => (
+                    <span key={c} className="rounded bg-danger-soft px-1.5 py-0.5 text-[11px] leading-tight text-danger">
+                      {c}
+                    </span>
+                  ))
+                : <span className="text-xs text-ink-faint">—</span>}
+            </div>
+          ))}
+
+          <div />
+          {rows.map((r) => {
+            const awarded = product.manufacturerId === r.mf!.id;
+            return awarded ? (
+              <div key={r.mf!.id} className="flex items-center gap-1 text-xs font-medium text-good">
+                <Check className="size-3.5" /> Awarded
+              </div>
+            ) : (
               <Button
+                key={r.mf!.id}
                 variant="secondary"
                 size="sm"
-                className="mt-3 w-full"
                 onClick={() => {
-                  onUpdate?.({ manufacturerId: mf.id });
-                  toast.success(`Awarded production to ${mf.name}`);
+                  onUpdate?.({ manufacturerId: r.mf!.id });
+                  toast.success(`Awarded production to ${r.mf!.name}`);
                 }}
               >
-                Award production
+                Award
               </Button>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

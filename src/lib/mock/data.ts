@@ -302,6 +302,43 @@ export const PRODUCTS: Product[] = [
     statusSince: "2026-06-14",
     retailPrice: 110,
     image: "/products/hoodie.webp",
+    candidates: [
+      {
+        manufacturerId: "mf-hangzhou",
+        status: "Awarded",
+        rating: 4.5,
+        notes: "Best price and lead; sharp embroidery. Awarded production.",
+        pros: ["Sharpest embroidery", "Cheapest landed cost", "Fastest lead time"],
+        cons: ["R1 drawcord tips wrong metal (fixed R2)", "Faint collar pucker"],
+        rounds: [
+          { round: 1, dateSent: "2026-05-02", dateReceived: "2026-05-19", photos: 4, revisionNotes: "Body length 2cm short; hood too shallow; drawcord tips wrong metal.", changedVsPrevious: "Initial sample from approved techpack." },
+          { round: 2, dateSent: "2026-05-26", dateReceived: "2026-06-14", photos: 6, revisionNotes: "Length corrected; hood depth good; drawcord tips now antique nickel; awaiting final wash test.", changedVsPrevious: "+2cm body; deeper hood; antique-nickel tips; 420gsm loopback." },
+          { round: 3, dateSent: "2026-06-18", dateReceived: "2026-06-25", photos: 5, revisionNotes: "Wash test passed, ~3% shrinkage; cuff ribbing relaxed; embroidery placement approved.", changedVsPrevious: "Pre-shrunk body; tighter cuff rib; locked embroidery coordinates." },
+        ],
+      },
+      {
+        manufacturerId: "mf-istanbul",
+        status: "Sampling",
+        rating: 4,
+        notes: "Gorgeous hand-feel and rib, but lands pricier once shipping is in.",
+        pros: ["Best hand-feel & drape", "Superb rib gauge"],
+        cons: ["~15% pricier landed", "Longer lead time", "Only one round so far"],
+        rounds: [
+          { round: 1, dateSent: "2026-05-28", dateReceived: "2026-06-16", photos: 4, revisionNotes: "Beautiful loopback and rib; body a touch boxy; embroidery slightly high.", changedVsPrevious: "Initial sample from approved techpack." },
+        ],
+      },
+      {
+        manufacturerId: "mf-coimbra",
+        status: "Passed",
+        rating: 3.5,
+        notes: "Premium make but the most expensive with the longest lead — passed for this drop.",
+        pros: ["Premium finishing", "EU-made, easy logistics"],
+        cons: ["Most expensive by far", "Longest lead", "High per-unit shipping"],
+        rounds: [
+          { round: 1, dateSent: "2026-05-20", dateReceived: "2026-06-10", photos: 3, revisionNotes: "Clean construction; fabric heavier than spec; cost over target.", changedVsPrevious: "Initial sample from approved techpack." },
+        ],
+      },
+    ],
     moq: 100,
     pricePerUnit: 28.5,
     bulkPrice: 22.0,
@@ -363,6 +400,8 @@ export const PRODUCTS: Product[] = [
         status: "Awarded",
         rating: 4.5,
         notes: "Best hand-feel, GOTS-certified cotton. Awarded production.",
+        pros: ["Best hand-feel", "GOTS-certified organic cotton", "Reliable QC"],
+        cons: ["Higher unit cost", "Smaller monthly capacity"],
         rounds: [
           { round: 1, dateSent: "2026-02-10", dateReceived: "2026-02-24", photos: 3, revisionNotes: "Neck rib slightly loose.", changedVsPrevious: "Initial sample." },
           { round: 2, dateSent: "2026-03-01", dateReceived: "2026-03-12", photos: 4, revisionNotes: "Approved for production.", changedVsPrevious: "Tighter neck rib, pre-shrunk body." },
@@ -373,6 +412,8 @@ export const PRODUCTS: Product[] = [
         status: "Passed",
         rating: 3.5,
         notes: "~20% cheaper but fabric read thinner than spec; neck rib inconsistent.",
+        pros: ["~20% cheaper", "Fast lead time", "High capacity"],
+        cons: ["Fabric thinner than spec", "Neck rib inconsistent"],
         rounds: [
           { round: 1, dateSent: "2026-02-12", dateReceived: "2026-02-27", photos: 2, revisionNotes: "Fabric too light vs. spec.", changedVsPrevious: "Initial sample." },
         ],
@@ -492,6 +533,8 @@ export const PRODUCTS: Product[] = [
         status: "Sampling",
         rating: 4,
         notes: "Heavy-gauge specialist; gauge and hand-feel are excellent, collar needs one more pass.",
+        pros: ["Excellent gauge & hand-feel", "Heavy-gauge specialist"],
+        cons: ["Collar needed a second pass", "Longer lead time"],
         rounds: [
           {
             round: 1,
@@ -515,6 +558,8 @@ export const PRODUCTS: Product[] = [
         manufacturerId: "mf-hangzhou",
         status: "Quoted",
         notes: "Quote received — sample not ordered yet. Slightly cheaper, lighter gauge.",
+        pros: ["Cheaper quote", "Fast lead time"],
+        cons: ["Lighter gauge than spec", "No sample yet"],
         rounds: [],
       },
     ],
