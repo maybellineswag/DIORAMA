@@ -3,368 +3,915 @@
 import * as React from "react";
 import {
   Sparkles,
-  Plus,
-  Upload,
   Wand2,
-  ImagePlus,
-  LayoutGrid,
-  Folder as FolderIcon,
-  Move,
-  Inbox,
   Link2,
   RefreshCw,
-  ArrowLeft,
+  Inbox,
+  Move,
+  Plus,
+  FolderPlus,
+  Info,
+  Share2,
+  Pencil,
+  BookOpen,
+  Download,
+  ChevronRight,
+  Trash2,
+  FolderInput,
+  ExternalLink,
+  Play,
+  FileText,
+  StickyNote,
+  Link as LinkIcon,
+  Video,
+  ImagePlus,
+  Check,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
-import { MoodSorter } from "@/components/app/mood-sorter";
+import { ViewSwitcher } from "@/components/app/view-switcher";
 import { MoodFreeFolders } from "@/components/app/mood-free-folders";
 import { MoodConnections } from "@/components/app/mood-connections";
-import { ViewSwitcher } from "@/components/app/view-switcher";
+import { MoodAiSort } from "@/components/app/mood-ai-sort";
+import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { MOOD_CATEGORIES, MOOD_IMAGES } from "@/lib/mock/data";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CONNECTIONS, MOOD_IMPORTS, type Connection } from "@/lib/mock/commerce";
+import {
+  BOARDS,
+  BLOCKS,
+  rootBoards,
+  childBoards,
+  boardsContaining,
+  boardCount,
+  boardPath,
+  type Board,
+  type Block,
+  type BlockKind,
+} from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
 
-/** Mac-Finder-style folder, tinted with the current accent. */
-function FolderGlyph({ className }: { className?: string }) {
+const KIND_ICON: Record<BlockKind, typeof Video> = {
+  image: ImagePlus,
+  video: Video,
+  link: LinkIcon,
+  file: FileText,
+  note: StickyNote,
+};
+
+function Initials({ name }: { name: string }) {
+  const i = name.split(" ").map((p) => p[0]).slice(0, 2).join("");
   return (
-    <svg viewBox="0 0 100 82" className={className} fill="none" aria-hidden>
-      <path
-        d="M8 24c0-4 3-7 7-7h21c1.6 0 3.1.6 4.3 1.7l5 4.6c1.1 1 2.6 1.7 4.2 1.7H85c4 0 7 3 7 7v37c0 4-3 7-7 7H15c-4 0-7-3-7-7V24Z"
-        fill="var(--accent-soft)"
-        stroke="var(--accent)"
-        strokeWidth="2.5"
-      />
-    </svg>
+    <span className="flex size-6 items-center justify-center rounded-full border bg-surface-2 text-[10px] font-medium">
+      {i}
+    </span>
   );
 }
 
 export default function MoodboardPage() {
-  const [categories, setCategories] = React.useState(MOOD_CATEGORIES);
-  const [view, setView] = React.useState<"free" | "folders" | "all" | "imports">("free");
-  const [active, setActive] = React.useState("All");
+  const { openMenu, contextMenu } = useContextMenu();
+  const [boards, setBoards] = React.useState<Board[]>(BOARDS);
+  const [blocks, setBlocks] = React.useState<Block[]>(BLOCKS);
+  const [view, setView] = React.useState<"folders" | "imports">("folders");
+  const [openId, setOpenId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
-  const [sorterOpen, setSorterOpen] = React.useState(false);
-  const [connOpen, setConnOpen] = React.useState(false);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+
+  const [imports, setImports] = React.useState(MOOD_IMPORTS);
   const [connections, setConnections] = React.useState<Connection[]>(CONNECTIONS);
   const synced = connections.find((c) => c.connected);
-  const [addOpen, setAddOpen] = React.useState(false);
-  const [newCat, setNewCat] = React.useState("");
-  const [dragHover, setDragHover] = React.useState(false);
 
+  const [connOpen, setConnOpen] = React.useState(false);
+  const [aiOpen, setAiOpen] = React.useState(false);
+  const [infoBoard, setInfoBoard] = React.useState<Board | null>(null);
+  const [shareBoard, setShareBoard] = React.useState<Board | null>(null);
+  const [bookBoard, setBookBoard] = React.useState<Board | null>(null);
+  const [preview, setPreview] = React.useState<Block | null>(null);
+  const [connectBlock, setConnectBlock] = React.useState<Block | null>(null);
+  const [boardDialog, setBoardDialog] = React.useState<
+    { mode: "new" | "rename"; value: string; parentId: string | null; id?: string } | null
+  >(null);
+  const [addBlock, setAddBlock] = React.useState<
+    { boardId: string; kind: "link" | "note"; value: string; title: string } | null
+  >(null);
+
+  const bById = (id: string) => blocks.find((b) => b.id === id);
+  const openBoard = openId ? boards.find((b) => b.id === openId) ?? null : null;
+
+  React.useEffect(() => setSelected(new Set()), [openId, view]);
+
+  // ── mutations ──
+  const addBoard = (name: string, parentId: string | null) => {
+    const id = `bd-${Date.now().toString(36)}`;
+    const today = new Date().toISOString().slice(0, 10);
+    setBoards((bs) => [
+      ...bs,
+      {
+        id,
+        name,
+        parentId,
+        blockIds: [],
+        createdAt: today,
+        updatedAt: today,
+        contributors: ["Grisha Obolenskiy"],
+        visibility: "Team",
+      },
+    ]);
+    return id;
+  };
+  const renameBoard = (id: string, name: string) =>
+    setBoards((bs) => bs.map((b) => (b.id === id ? { ...b, name } : b)));
+  const deleteBoard = (id: string) => {
+    setBoards((bs) => bs.filter((b) => b.id !== id && b.parentId !== id));
+    if (openId === id) setOpenId(null);
+    toast.success("Board moved to Trash");
+  };
+  const setVisibility = (id: string, v: Board["visibility"]) =>
+    setBoards((bs) => bs.map((b) => (b.id === id ? { ...b, visibility: v } : b)));
+  const addToBoard = (boardId: string, blockId: string) =>
+    setBoards((bs) =>
+      bs.map((b) =>
+        b.id === boardId && !b.blockIds.includes(blockId)
+          ? { ...b, blockIds: [blockId, ...b.blockIds] }
+          : b,
+      ),
+    );
+  const removeFromBoard = (boardId: string, blockId: string) =>
+    setBoards((bs) =>
+      bs.map((b) => (b.id === boardId ? { ...b, blockIds: b.blockIds.filter((x) => x !== blockId) } : b)),
+    );
+
+  const createBlockInBoard = (boardId: string, b: Omit<Block, "id" | "addedAt" | "ratio"> & { ratio?: number }) => {
+    const id = `bk-${Date.now().toString(36)}`;
+    const block: Block = { id, addedAt: new Date().toISOString().slice(0, 10), ratio: b.ratio ?? 1, ...b };
+    setBlocks((bl) => [...bl, block]);
+    addToBoard(boardId, id);
+  };
+
+  const submitBoardDialog = () => {
+    if (!boardDialog) return;
+    const name = boardDialog.value.trim();
+    if (!name) return;
+    if (boardDialog.mode === "new") {
+      const id = addBoard(name, boardDialog.parentId);
+      toast.success(`Created board “${name}”`);
+      if (boardDialog.parentId) setOpenId((o) => o); // stay
+      else setOpenId(id);
+    } else if (boardDialog.id) {
+      renameBoard(boardDialog.id, name);
+      toast.success("Board renamed");
+    }
+    setBoardDialog(null);
+  };
+
+  const submitAddBlock = () => {
+    if (!addBlock) return;
+    if (addBlock.kind === "note") {
+      if (!addBlock.value.trim()) return;
+      createBlockInBoard(addBlock.boardId, { kind: "note", note: addBlock.value.trim(), ratio: 0.7 });
+    } else {
+      if (!addBlock.value.trim()) return;
+      createBlockInBoard(addBlock.boardId, {
+        kind: "link",
+        url: addBlock.value.trim(),
+        title: addBlock.title.trim() || addBlock.value.trim(),
+        ratio: 0.8,
+      });
+    }
+    toast.success("Block added");
+    setAddBlock(null);
+  };
+
+  const applyAiSort = (assignments: Record<string, string>, rules: Record<string, string>) => {
+    // Save rules, file each import as a new image block into its board.
+    setBoards((bs) => bs.map((b) => (rules[b.id] !== undefined ? { ...b, rule: rules[b.id] } : b)));
+    Object.entries(assignments).forEach(([importId, boardId]) => {
+      const im = imports.find((x) => x.id === importId);
+      if (!im) return;
+      createBlockInBoard(boardId, { kind: "image", src: im.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] });
+    });
+    setImports([]);
+    toast.success(`Filed ${Object.keys(assignments).length} references`);
+  };
+
+  // ── derived ──
+  const roots = rootBoards(boards);
+  const countForName = (name: string) => {
+    const b = roots.find((x) => x.name === name);
+    return b ? boardCount(boards, b) : 0;
+  };
   const searching = query.trim().length > 0;
-
-  const countFor = (cat: string) =>
-    MOOD_IMAGES.filter((im) => im.category === cat).length;
-
-  const images = MOOD_IMAGES.filter(
-    (im) => active === "All" || im.category === active,
-  ).filter((im) =>
-    searching
-      ? im.tags.some((t) => t.toLowerCase().includes(query.toLowerCase())) ||
-        im.category.toLowerCase().includes(query.toLowerCase())
-      : true,
-  );
-
   const searchResults = searching
-    ? MOOD_IMAGES.filter(
-        (im) =>
-          im.tags.some((t) => t.toLowerCase().includes(query.toLowerCase())) ||
-          im.category.toLowerCase().includes(query.toLowerCase()),
+    ? blocks.filter((b) =>
+        `${b.title ?? ""} ${b.note ?? ""} ${b.kind}`.toLowerCase().includes(query.toLowerCase()),
       )
     : [];
 
-  const openFolder = (cat: string) => {
-    setActive(cat);
-    setView("all");
-  };
+  // ── context menus ──
+  const boardMenu = (b: Board): CtxItem[] => [
+    { label: "Open", icon: FolderInput, onClick: () => setOpenId(b.id) },
+    { label: "Get Info", icon: Info, onClick: () => setInfoBoard(b) },
+    { label: "Share", icon: Share2, onClick: () => setShareBoard(b) },
+    { label: "Make book", icon: BookOpen, onClick: () => setBookBoard(b) },
+    { label: "Rename…", icon: Pencil, onClick: () => setBoardDialog({ mode: "rename", value: b.name, parentId: b.parentId, id: b.id }) },
+    { type: "sep" },
+    { label: "Move to Trash", icon: Trash2, destructive: true, onClick: () => deleteBoard(b.id) },
+  ];
+  const blockMenu = (b: Block): CtxItem[] => [
+    { label: b.kind === "link" || b.kind === "video" ? "Open link" : "Open", icon: ExternalLink, onClick: () => (b.url ? window.open(b.url, "_blank") : setPreview(b)) },
+    { label: "Add to board…", icon: FolderInput, onClick: () => setConnectBlock(b) },
+    { label: "Download", icon: Download, onClick: () => toast.success("Download is simulated in this prototype.") },
+    ...(openBoard
+      ? ([{ type: "sep" }, { label: "Remove from board", icon: Trash2, destructive: true, onClick: () => removeFromBoard(openBoard.id, b.id) }] as CtxItem[])
+      : []),
+  ];
 
-  const addCategory = () => {
-    if (!newCat.trim()) return;
-    setCategories((c) => [...c, newCat.trim()]);
-    setNewCat("");
-    setAddOpen(false);
-    toast.success(`Added category “${newCat.trim()}”`);
-  };
-
-  const grid = (imgs: typeof MOOD_IMAGES) => (
-    <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 [&>*]:mb-4">
-      {imgs.map((im) => (
-        <div
-          key={im.id}
-          className="break-inside-avoid overflow-hidden rounded-xl border border-border transition-shadow duration-200 hover:shadow-lg"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={im.src}
-            alt={im.tags.join(", ")}
-            draggable={false}
-            className="block w-full select-none"
-          />
-        </div>
-      ))}
-    </div>
-  );
+  const toggleSel = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Moodboard"
-        description="Collect, organize, and let AI sort your visual references."
+        description="Collect references into boards — images, video, links, notes — and let AI keep them filed."
         actions={
           <div className="flex items-center gap-2">
-            {!searching && (
+            {!openBoard && !searching && (
               <ViewSwitcher
                 value={view}
-                onChange={(v) => {
-                  if (v === "all") setActive("All");
-                  setView(v);
-                }}
+                onChange={setView}
                 options={[
-                  { id: "free", label: "Free", icon: Move },
-                  { id: "folders", label: "Folders", icon: FolderIcon },
-                  { id: "all", label: "All", icon: LayoutGrid },
+                  { id: "folders", label: "Folders", icon: Move },
                   { id: "imports", label: "Imports", icon: Inbox },
                 ]}
               />
             )}
             {synced && (
               <span className="hidden items-center gap-1.5 rounded-full border bg-surface-2/60 px-2.5 py-1 text-xs text-ink-soft lg:flex">
-                <RefreshCw className="size-3 text-good" />
-                Synced {synced.lastSynced}
+                <RefreshCw className="size-3 text-good" /> Synced {synced.lastSynced}
               </span>
             )}
             <Button variant="secondary" size="sm" onClick={() => setConnOpen(true)}>
               <Link2 className="size-4" /> Connections
             </Button>
-            <Button size="sm" onClick={() => setSorterOpen(true)}>
+            <Button size="sm" onClick={() => setAiOpen(true)}>
               <Wand2 className="size-4" /> AI Sort
             </Button>
           </div>
         }
       />
 
-      {/* Semantic search */}
+      {/* Search */}
       <div className="relative">
-        <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent" />
+        <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent-ink" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Semantic search — try 'red pants', 'chain embroidery', 'washed denim'…"
+          placeholder="Search references — titles, notes, links…"
           className="h-11 pl-10"
         />
       </div>
 
-      {/* ── Search results override both views ── */}
       {searching ? (
         <>
-          <p className="text-xs text-ink-faint">
-            <Sparkles className="mr-1 inline size-3 text-accent" />
-            {searchResults.length} matches ranked by visual similarity for “{query}”
-          </p>
-          {searchResults.length ? (
-            grid(searchResults)
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
-              <Sparkles className="size-6" />
-              <p className="text-sm">No references match — try a different search.</p>
-            </div>
-          )}
+          <p className="text-xs text-ink-faint">{searchResults.length} references match “{query}”</p>
+          <Masonry
+            blocks={searchResults}
+            boards={boards}
+            selected={selected}
+            onToggle={toggleSel}
+            onOpen={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
+            onContext={(b, e) => openMenu(e, blockMenu(b))}
+          />
         </>
-      ) : view === "free" ? (
-        /* ── Free draggable folders (positions saved) ── */
-        <MoodFreeFolders
-          categories={categories}
-          countFor={countFor}
-          onOpen={openFolder}
-          onAdd={() => setAddOpen(true)}
+      ) : openBoard ? (
+        <BoardDetail
+          board={openBoard}
+          boards={boards}
+          bById={bById}
+          selected={selected}
+          onToggle={toggleSel}
+          onClearSel={() => setSelected(new Set())}
+          onOpenBoard={setOpenId}
+          onOpenBlock={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
+          onBlockContext={(b, e) => openMenu(e, blockMenu(b))}
+          onBoardContext={(b, e) => openMenu(e, boardMenu(b))}
+          onInfo={() => setInfoBoard(openBoard)}
+          onShare={() => setShareBoard(openBoard)}
+          onBook={() => setBookBoard(openBoard)}
+          onRename={() => setBoardDialog({ mode: "rename", value: openBoard.name, parentId: openBoard.parentId, id: openBoard.id })}
+          onNewSub={() => setBoardDialog({ mode: "new", value: "", parentId: openBoard.id })}
+          onAddLink={() => setAddBlock({ boardId: openBoard.id, kind: "link", value: "", title: "" })}
+          onAddNote={() => setAddBlock({ boardId: openBoard.id, kind: "note", value: "", title: "" })}
+          onUpload={() => toast.success("Upload is simulated in this prototype.")}
         />
-      ) : view === "folders" ? (
-        /* ── Folder grid view ── */
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {categories
-            .filter((c) => c !== "All")
-            .map((c) => (
-              <button
-                key={c}
-                onClick={() => openFolder(c)}
-                className="group flex flex-col items-center gap-2 rounded-xl p-5 transition-colors hover:bg-elevated/40 cursor-pointer"
-              >
-                <FolderGlyph className="w-28 transition-transform duration-200 group-hover:-translate-y-1" />
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-sm font-medium">{c}</span>
-                  <span className="tabular text-xs text-ink-faint">{countFor(c)}</span>
-                </div>
-              </button>
-            ))}
-          <button
-            onClick={() => setAddOpen(true)}
-            className="group flex flex-col items-center gap-2 rounded-xl p-5 text-ink-faint transition-colors hover:bg-elevated/40 hover:text-foreground cursor-pointer"
-          >
-            <span className="flex h-[88px] w-28 items-center justify-center rounded-xl border-2 border-dashed">
-              <Plus className="size-7" />
-            </span>
-            <span className="text-sm">Add category</span>
-          </button>
-        </div>
       ) : view === "imports" ? (
-        /* ── Imports from synced sources ── */
-        <div className="space-y-4">
-          <p className="text-sm text-ink-soft">
-            {MOOD_IMPORTS.length} new references pulled from your connected sources —
-            sort them into a category.
-          </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {MOOD_IMPORTS.map((im) => (
-              <div
-                key={im.id}
-                className="group overflow-hidden rounded-xl border transition-shadow duration-200 hover:shadow-lg"
-              >
-                <div className="relative aspect-square overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={im.src}
-                    alt=""
-                    draggable={false}
-                    className="size-full select-none object-cover"
-                  />
-                  <Badge variant="default" className="absolute left-2 top-2 bg-paper/80 backdrop-blur">
-                    {im.source}
-                  </Badge>
-                </div>
-                <button
-                  onClick={() =>
-                    toast.success("Moved to category", {
-                      description: "Sorting is simulated in this prototype.",
-                    })
-                  }
-                  className="flex w-full items-center justify-center gap-1.5 py-2 text-xs text-accent-ink transition-colors hover:bg-elevated cursor-pointer"
-                >
-                  <Plus className="size-3.5" /> Move to category
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ImportsView
+          imports={imports}
+          onSort={() => setAiOpen(true)}
+          onConnections={() => setConnOpen(true)}
+        />
       ) : (
-        /* ── Grid view (secondary) ── */
-        <>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setView("folders")}>
-              <ArrowLeft className="size-4" /> Folders
-            </Button>
-            <div className="flex flex-wrap items-center gap-2">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setActive(c)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-[13px] font-medium transition-colors cursor-pointer",
-                    active === c
-                      ? "border-accent/40 bg-accent-soft text-accent-ink"
-                      : "border-border text-ink-soft hover:bg-elevated/60 hover:text-foreground",
-                  )}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Upload dropzone */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragHover(true);
+        /* Folders — free draggable boards, consistent with Asset Library */
+        <div
+          onContextMenu={(e) =>
+            openMenu(e, [
+              { label: "New board", icon: FolderPlus, onClick: () => setBoardDialog({ mode: "new", value: "", parentId: null }) },
+            ])
+          }
+        >
+          <MoodFreeFolders
+            categories={roots.map((b) => b.name)}
+            countFor={countForName}
+            onOpen={(name) => {
+              const b = roots.find((x) => x.name === name);
+              if (b) setOpenId(b.id);
             }}
-            onDragLeave={() => setDragHover(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragHover(false);
-              toast.success("References added", {
-                description: "Drag-and-drop upload is simulated in this prototype.",
-              });
+            onAdd={() => setBoardDialog({ mode: "new", value: "", parentId: null })}
+            onContext={(name, e) => {
+              const b = roots.find((x) => x.name === name);
+              if (b) openMenu(e, boardMenu(b));
             }}
-            className={cn(
-              "flex items-center justify-center gap-3 rounded-xl border border-dashed py-4 text-sm transition-colors",
-              dragHover ? "border-accent/60 bg-accent-soft/30 text-accent-ink" : "text-ink-faint",
-            )}
-          >
-            <ImagePlus className="size-4" />
-            Drag images here to add to{" "}
-            <span className="font-medium text-ink-soft">{active}</span>
-            <span className="text-ink-faint/60">·</span>
-            <button
-              onClick={() =>
-                toast.success("References added", {
-                  description: "File picker is simulated in this prototype.",
-                })
-              }
-              className="inline-flex items-center gap-1 text-accent-ink hover:underline cursor-pointer"
-            >
-              <Upload className="size-3.5" /> browse
-            </button>
-          </div>
-
-          {images.length ? (
-            grid(images)
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
-              <Sparkles className="size-6" />
-              <p className="text-sm">Nothing here yet — drag in some references.</p>
-            </div>
-          )}
-        </>
+            storageKey="diorama.mood.boards.v1"
+            addLabel="New board"
+            scatter
+            toolbar
+          />
+        </div>
       )}
 
-      {/* Add-category dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      {/* ── dialogs ── */}
+      <MoodConnections open={connOpen} onOpenChange={setConnOpen} connections={connections} setConnections={setConnections} />
+      <MoodAiSort open={aiOpen} onOpenChange={setAiOpen} boards={roots} imports={imports} onApply={applyAiSort} />
+
+      <InfoDialog board={infoBoard} boards={boards} onClose={() => setInfoBoard(null)} />
+      <ShareDialog board={shareBoard} onClose={() => setShareBoard(null)} onVisibility={(v) => shareBoard && setVisibility(shareBoard.id, v)} />
+      <BookDialog board={bookBoard} bById={bById} onClose={() => setBookBoard(null)} />
+      <BlockPreview block={preview} boards={boards} onClose={() => setPreview(null)} onConnect={(b) => { setPreview(null); setConnectBlock(b); }} />
+      <ConnectDialog block={connectBlock} boards={boards} onClose={() => setConnectBlock(null)} onAdd={(boardId) => { if (connectBlock) { addToBoard(boardId, connectBlock.id); toast.success("Added to board"); } setConnectBlock(null); }} />
+
+      {/* New / rename board */}
+      <Dialog open={!!boardDialog} onOpenChange={(v) => !v && setBoardDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>New category</DialogTitle>
-            <DialogDescription>Create a custom moodboard category.</DialogDescription>
+            <DialogTitle>{boardDialog?.mode === "rename" ? "Rename board" : boardDialog?.parentId ? "New sub-board" : "New board"}</DialogTitle>
+            <DialogDescription>{boardDialog?.mode === "rename" ? "Give this board a new name." : "Boards hold images, video, links, files, and notes."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="cat">Name</Label>
-            <Input
-              id="cat"
-              value={newCat}
-              onChange={(e) => setNewCat(e.target.value)}
-              placeholder="e.g. Lookbook Refs"
-              onKeyDown={(e) => e.key === "Enter" && addCategory()}
-              autoFocus
-            />
+            <Label htmlFor="board-name">Name</Label>
+            <Input id="board-name" value={boardDialog?.value ?? ""} autoFocus onKeyDown={(e) => e.key === "Enter" && submitBoardDialog()} onChange={(e) => setBoardDialog((d) => (d ? { ...d, value: e.target.value } : d))} placeholder="e.g. Washes & Dye" />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={addCategory}>Add category</Button>
+            <Button variant="ghost" onClick={() => setBoardDialog(null)}>Cancel</Button>
+            <Button onClick={submitBoardDialog}>{boardDialog?.mode === "rename" ? "Rename" : "Create"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <MoodConnections
-        open={connOpen}
-        onOpenChange={setConnOpen}
-        connections={connections}
-        setConnections={setConnections}
-      />
+      {/* Add link / note */}
+      <Dialog open={!!addBlock} onOpenChange={(v) => !v && setAddBlock(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{addBlock?.kind === "note" ? "Add note" : "Add link"}</DialogTitle>
+          </DialogHeader>
+          {addBlock?.kind === "note" ? (
+            <Textarea autoFocus value={addBlock?.value ?? ""} onChange={(e) => setAddBlock((a) => (a ? { ...a, value: e.target.value } : a))} placeholder="Type a note…" className="min-h-[100px]" />
+          ) : (
+            <div className="space-y-2">
+              <Input autoFocus value={addBlock?.value ?? ""} onChange={(e) => setAddBlock((a) => (a ? { ...a, value: e.target.value } : a))} placeholder="https://…" />
+              <Input value={addBlock?.title ?? ""} onChange={(e) => setAddBlock((a) => (a ? { ...a, title: e.target.value } : a))} placeholder="Title (optional)" />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddBlock(null)}>Cancel</Button>
+            <Button onClick={submitAddBlock}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {sorterOpen && <MoodSorter onClose={() => setSorterOpen(false)} />}
+      {contextMenu}
     </div>
+  );
+}
+
+// ── Masonry of blocks ────────────────────────────────────────
+function Masonry({
+  blocks,
+  boards,
+  selected,
+  onToggle,
+  onOpen,
+  onContext,
+}: {
+  blocks: Block[];
+  boards: Board[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  onOpen: (b: Block) => void;
+  onContext: (b: Block, e: React.MouseEvent) => void;
+}) {
+  return (
+    <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 [&>*]:mb-4">
+      {blocks.map((b) => (
+        <BlockCard
+          key={b.id}
+          block={b}
+          backlinks={boardsContaining(boards, b.id).length}
+          selected={selected.has(b.id)}
+          onToggle={() => onToggle(b.id)}
+          onOpen={() => onOpen(b)}
+          onContext={(e) => onContext(b, e)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function BlockCard({
+  block,
+  backlinks,
+  selected,
+  onToggle,
+  onOpen,
+  onContext,
+}: {
+  block: Block;
+  backlinks: number;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+  onContext: (e: React.MouseEvent) => void;
+}) {
+  const Icon = KIND_ICON[block.kind];
+  return (
+    <div
+      onClick={onOpen}
+      onContextMenu={onContext}
+      className={cn(
+        "group relative block w-full cursor-pointer overflow-hidden rounded-xl border bg-card transition-all hover:shadow-lg",
+        selected ? "border-accent ring-2 ring-accent/40" : "border-border",
+      )}
+    >
+      {/* select checkbox */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className={cn(
+          "absolute left-2 top-2 z-10 flex size-5 items-center justify-center rounded-full border backdrop-blur transition-opacity",
+          selected ? "border-accent bg-accent text-accent-foreground opacity-100" : "border-white/60 bg-paper/60 text-transparent opacity-0 group-hover:opacity-100",
+        )}
+      >
+        <Check className="size-3" />
+      </button>
+      {/* backlink badge */}
+      {backlinks > 1 && (
+        <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-paper/80 px-1.5 py-0.5 text-[10px] text-ink-soft backdrop-blur">
+          <FolderInput className="size-2.5" /> {backlinks}
+        </span>
+      )}
+
+      {block.kind === "note" ? (
+        <div className="flex min-h-[140px] items-center bg-accent-soft/30 p-4">
+          <p className="text-sm leading-relaxed text-ink-soft">{block.note}</p>
+        </div>
+      ) : block.kind === "file" ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-ink-faint">
+          <FileText className="size-8" />
+          <span className="px-3 text-center text-xs">{block.title}</span>
+        </div>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={block.src} alt="" style={{ aspectRatio: `1 / ${block.ratio}` }} className="w-full object-cover" />
+          {block.kind === "video" && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="flex size-11 items-center justify-center rounded-full bg-paper/70 backdrop-blur">
+                <Play className="size-5" />
+              </span>
+            </span>
+          )}
+          {(block.kind === "link" || block.kind === "video") && block.title && (
+            <div className="flex items-center gap-1.5 border-t bg-card p-2.5">
+              <Icon className="size-3.5 shrink-0 text-ink-faint" />
+              <p className="truncate text-xs">{block.title}</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Board detail ─────────────────────────────────────────────
+function BoardDetail(props: {
+  board: Board;
+  boards: Board[];
+  bById: (id: string) => Block | undefined;
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  onClearSel: () => void;
+  onOpenBoard: (id: string | null) => void;
+  onOpenBlock: (b: Block) => void;
+  onBlockContext: (b: Block, e: React.MouseEvent) => void;
+  onBoardContext: (b: Board, e: React.MouseEvent) => void;
+  onInfo: () => void;
+  onShare: () => void;
+  onBook: () => void;
+  onRename: () => void;
+  onNewSub: () => void;
+  onAddLink: () => void;
+  onAddNote: () => void;
+  onUpload: () => void;
+}) {
+  const { board, boards, bById, selected } = props;
+  const path = boardPath(boards, board.id);
+  const subs = childBoards(boards, board.id);
+  const boardBlocks = board.blockIds.map(bById).filter(Boolean) as Block[];
+  const selCount = boardBlocks.filter((b) => selected.has(b.id)).length;
+
+  return (
+    <div className="space-y-5">
+      {/* breadcrumb */}
+      <div className="flex items-center gap-1 text-sm">
+        <button onClick={() => props.onOpenBoard(null)} className="rounded px-1.5 py-0.5 text-ink-faint hover:bg-elevated cursor-pointer">Moodboard</button>
+        {path.map((b, i) => (
+          <React.Fragment key={b.id}>
+            <ChevronRight className="size-3.5 text-ink-faint" />
+            <button
+              onClick={() => props.onOpenBoard(b.id)}
+              className={cn("rounded px-1.5 py-0.5 hover:bg-elevated cursor-pointer", i === path.length - 1 ? "font-medium" : "text-ink-faint")}
+            >
+              {b.name}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="display text-2xl tracking-tight">{board.name}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-faint">
+            <span>{boardCount(boards, board)} items</span>
+            <span>·</span>
+            <span>Updated {board.updatedAt}</span>
+            <span>·</span>
+            <Badge variant="outline">{board.visibility}</Badge>
+            {board.linkedCollection && (
+              <>
+                <span>·</span>
+                <span className="text-accent-ink">{board.linkedCollection}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm"><Plus className="size-4" /> Add</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={props.onUpload}><ImagePlus className="size-4" /> Upload images</DropdownMenuItem>
+              <DropdownMenuItem onClick={props.onAddLink}><LinkIcon className="size-4" /> Add link</DropdownMenuItem>
+              <DropdownMenuItem onClick={props.onAddNote}><StickyNote className="size-4" /> Add note</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={props.onNewSub}><FolderPlus className="size-4" /> New sub-folder</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="secondary" size="icon-sm" onClick={props.onInfo} title="Info"><Info className="size-4" /></Button>
+          <Button variant="secondary" size="icon-sm" onClick={props.onShare} title="Share"><Share2 className="size-4" /></Button>
+          <Button variant="secondary" size="icon-sm" onClick={props.onRename} title="Rename"><Pencil className="size-4" /></Button>
+          <Button variant="secondary" size="sm" onClick={props.onBook}><BookOpen className="size-4" /> Make book</Button>
+        </div>
+      </div>
+
+      {/* selection bar */}
+      {selCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-accent/40 bg-accent-soft/20 px-3 py-2 text-sm">
+          <span className="font-medium">{selCount} selected</span>
+          <Button variant="secondary" size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}><Download className="size-4" /> Download</Button>
+          <Button variant="ghost" size="sm" onClick={props.onClearSel}>Clear</Button>
+        </div>
+      )}
+
+      {/* sub-folders */}
+      {subs.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {subs.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => props.onOpenBoard(s.id)}
+              onContextMenu={(e) => props.onBoardContext(s, e)}
+              className="group flex items-center gap-2 rounded-xl border bg-card p-3 text-left transition-colors hover:border-ink-faint/40 cursor-pointer"
+            >
+              <FolderInput className="size-4 text-accent-ink" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{s.name}</p>
+                <p className="text-xs text-ink-faint">{boardCount(boards, s)} items</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* blocks */}
+      {boardBlocks.length === 0 && subs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
+          <ImagePlus className="size-6" />
+          <p className="text-sm">This board is empty — add references with the Add button.</p>
+        </div>
+      ) : (
+        <Masonry
+          blocks={boardBlocks}
+          boards={boards}
+          selected={selected}
+          onToggle={props.onToggle}
+          onOpen={props.onOpenBlock}
+          onContext={props.onBlockContext}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Imports ──────────────────────────────────────────────────
+function ImportsView({
+  imports,
+  onSort,
+  onConnections,
+}: {
+  imports: typeof MOOD_IMPORTS;
+  onSort: () => void;
+  onConnections: () => void;
+}) {
+  if (imports.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-20 text-center">
+        <Inbox className="size-7 text-ink-faint" />
+        <p className="text-sm text-ink-soft">Inbox is empty — everything's filed.</p>
+        <Button variant="secondary" size="sm" onClick={onConnections}><Link2 className="size-4" /> Manage connections</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-xl border bg-surface-2/40 p-3">
+        <p className="text-sm text-ink-soft">
+          <span className="font-medium text-foreground">{imports.length} new references</span> pulled from your connected sources, waiting to be filed.
+        </p>
+        <Button size="sm" onClick={onSort}><Wand2 className="size-4" /> Sort with AI</Button>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {imports.map((im) => (
+          <div key={im.id} className="overflow-hidden rounded-xl border">
+            <div className="relative aspect-square">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={im.src} alt="" className="size-full object-cover" />
+              <Badge variant="default" className="absolute left-2 top-2 bg-paper/80 backdrop-blur">{im.source}</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Info dialog ──────────────────────────────────────────────
+function InfoDialog({ board, boards, onClose }: { board: Board | null; boards: Board[]; onClose: () => void }) {
+  return (
+    <Dialog open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{board?.name}</DialogTitle>
+          <DialogDescription>Board info</DialogDescription>
+        </DialogHeader>
+        {board && (
+          <div className="space-y-3 text-sm">
+            <Row label="Items" value={`${boardCount(boards, board)}`} />
+            <Row label="Created" value={board.createdAt} />
+            <Row label="Last updated" value={board.updatedAt} />
+            <Row label="Visibility" value={board.visibility} />
+            {board.linkedCollection && <Row label="Collection" value={board.linkedCollection} />}
+            <Separator />
+            <div>
+              <p className="mb-2 text-xs text-ink-faint">Contributors</p>
+              <div className="flex flex-wrap gap-2">
+                {board.contributors.map((c) => (
+                  <span key={c} className="flex items-center gap-1.5 rounded-full border bg-surface-2/40 py-0.5 pl-0.5 pr-2 text-xs">
+                    <Initials name={c} /> {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {board.rule && (
+              <>
+                <Separator />
+                <div>
+                  <p className="mb-1 text-xs text-ink-faint">AI filing rule</p>
+                  <p className="text-sm text-ink-soft">{board.rule}</p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-ink-faint">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+// ── Share dialog (visibility + people) ───────────────────────
+function ShareDialog({ board, onClose, onVisibility }: { board: Board | null; onClose: () => void; onVisibility: (v: Board["visibility"]) => void }) {
+  const [invite, setInvite] = React.useState("");
+  return (
+    <Dialog open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Share “{board?.name}”</DialogTitle>
+          <DialogDescription>Control who can see and add to this board.</DialogDescription>
+        </DialogHeader>
+        {board && (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-ink-faint">Access</Label>
+              <div className="mt-1.5 flex gap-2">
+                {(["Private", "Team", "Public"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => onVisibility(v)}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-sm transition-colors cursor-pointer",
+                      board.visibility === v ? "border-accent/50 bg-accent-soft text-accent-ink" : "hover:bg-elevated",
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-ink-faint">People</Label>
+              <div className="mt-1.5 space-y-1.5">
+                {board.contributors.map((c, i) => (
+                  <div key={c} className="flex items-center gap-2 text-sm">
+                    <Initials name={c} />
+                    <span className="flex-1">{c}</span>
+                    <span className="text-xs text-ink-faint">{i === 0 ? "Owner" : "Editor"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Input value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="Invite by email…" />
+              <Button variant="secondary" onClick={() => { if (invite.trim()) { toast.success(`Invited ${invite.trim()}`); setInvite(""); } }}><Users className="size-4" /> Invite</Button>
+            </div>
+            <Button className="w-full" onClick={() => { navigator.clipboard?.writeText(window.location.href); toast.success("Share link copied"); }}>
+              <Share2 className="size-4" /> Copy share link
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Make book dialog ─────────────────────────────────────────
+function BookDialog({ board, bById, onClose }: { board: Board | null; bById: (id: string) => Block | undefined; onClose: () => void }) {
+  const images = board ? (board.blockIds.map(bById).filter((b): b is Block => !!b && b.kind === "image")) : [];
+  return (
+    <Dialog open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Make book — {board?.name}</DialogTitle>
+          <DialogDescription>A print-ready PDF lookbook from this board’s images.</DialogDescription>
+        </DialogHeader>
+        {/* cover + spread preview */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex aspect-[3/4] flex-col justify-end rounded-lg border bg-gradient-to-b from-surface-2 to-elevated p-4">
+            <p className="text-xs text-ink-faint">Olivine · Moodboard</p>
+            <p className="display text-xl tracking-tight">{board?.name}</p>
+            <p className="mt-1 text-xs text-ink-faint">{images.length} plates</p>
+          </div>
+          <div className="grid aspect-[3/4] grid-cols-2 grid-rows-3 gap-1.5 overflow-hidden rounded-lg border p-1.5">
+            {images.slice(0, 6).map((b) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={b.id} src={b.src} alt="" className="size-full rounded object-cover" />
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => { toast.success("Lookbook PDF exported (simulated)"); onClose(); }}>
+            <Download className="size-4" /> Export PDF
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Block preview (lightbox) ─────────────────────────────────
+function BlockPreview({ block, boards, onClose, onConnect }: { block: Block | null; boards: Board[]; onClose: () => void; onConnect: (b: Block) => void }) {
+  const links = block ? boardsContaining(boards, block.id) : [];
+  return (
+    <Dialog open={!!block} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl overflow-hidden p-0">
+        <DialogTitle className="sr-only">{block?.title ?? block?.kind}</DialogTitle>
+        {block && (
+          <div className="grid md:grid-cols-[1.4fr_1fr]">
+            <div className="flex items-center justify-center bg-surface-2">
+              {block.kind === "note" ? (
+                <p className="p-8 text-sm leading-relaxed text-ink-soft">{block.note}</p>
+              ) : block.kind === "file" ? (
+                <div className="flex flex-col items-center gap-2 py-16 text-ink-faint"><FileText className="size-9" /><span className="text-sm">{block.title}</span></div>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={block.src} alt="" className="max-h-[70vh] w-full object-contain" />
+              )}
+            </div>
+            <div className="flex flex-col p-5">
+              <Badge variant="accent" className="w-fit capitalize">{block.kind}</Badge>
+              {block.title && <p className="mt-2 text-sm font-medium">{block.title}</p>}
+              {block.url && <a href={block.url} target="_blank" rel="noreferrer" className="mt-1 truncate text-xs text-accent-ink hover:underline">{block.url}</a>}
+              <p className="mt-3 text-xs text-ink-faint">Added {block.addedAt}</p>
+              <Separator className="my-4" />
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">In {links.length} board{links.length === 1 ? "" : "s"}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {links.map((b) => (
+                  <Badge key={b.id} variant="outline">{b.name}</Badge>
+                ))}
+              </div>
+              <div className="mt-auto flex gap-2 pt-5">
+                <Button variant="secondary" className="flex-1" onClick={() => onConnect(block)}><FolderInput className="size-4" /> Add to board</Button>
+                <Button className="flex-1" onClick={() => toast.success("Download is simulated in this prototype.")}><Download className="size-4" /> Download</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Connect-to-board dialog ──────────────────────────────────
+function ConnectDialog({ block, boards, onClose, onAdd }: { block: Block | null; boards: Board[]; onClose: () => void; onAdd: (boardId: string) => void }) {
+  return (
+    <Dialog open={!!block} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add to board</DialogTitle>
+          <DialogDescription>The same reference can live in several boards.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[50vh] space-y-1 overflow-y-auto">
+          {boards.map((b) => {
+            const has = block ? b.blockIds.includes(block.id) : false;
+            return (
+              <button
+                key={b.id}
+                disabled={has}
+                onClick={() => onAdd(b.id)}
+                className={cn("flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors", has ? "opacity-50" : "hover:bg-elevated cursor-pointer")}
+              >
+                <FolderInput className="size-4 text-ink-faint" />
+                <span className="flex-1">{b.name}</span>
+                {has && <Check className="size-4 text-good" />}
+              </button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
