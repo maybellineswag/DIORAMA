@@ -180,6 +180,8 @@ export interface Asset {
   size: string;
   updated: string;
   seed: string;
+  /** Path to a real file in /public for preview + download. */
+  src?: string;
   /** For Pieces: nested sub-assets. */
   subAssets?: { label: string; fileType: string }[];
 }

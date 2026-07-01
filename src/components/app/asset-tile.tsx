@@ -4,13 +4,29 @@ import { Thumb } from "@/components/thumb";
 import type { Asset } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
-export const isDoc = (ft: string) => ["PDF", "INDD", "DOC"].includes(ft);
+export const isImage = (ft: string) =>
+  ["JPG", "JPEG", "PNG", "SVG", "WEBP", "GIF"].includes(ft.toUpperCase());
+export const isPdf = (ft: string) => ft.toUpperCase() === "PDF";
+export const isDoc = (ft: string) =>
+  ["PDF", "INDD", "DOC", "AI", "PSD", "EPS"].includes(ft.toUpperCase());
 export const is3D = (a?: Asset) => a?.category === "Hardware";
 
 /** Small square preview for chips, grid cells, and pickers. */
 export function AssetTile({ asset, className }: { asset?: Asset; className?: string }) {
   if (!asset) return <div className={cn("bg-surface-2", className)} />;
-  if (isDoc(asset.fileType)) {
+
+  // Real image files get a real thumbnail.
+  if (asset.src && isImage(asset.fileType)) {
+    return (
+      <div className={cn("bg-surface-2", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={asset.src} alt={asset.name} className="size-full object-cover" />
+      </div>
+    );
+  }
+
+  // Documents (PDF/AI/PSD/INDD…) show a labelled file tile.
+  if (isDoc(asset.fileType) && !is3D(asset)) {
     return (
       <div
         className={cn(
@@ -23,6 +39,8 @@ export function AssetTile({ asset, className }: { asset?: Asset; className?: str
       </div>
     );
   }
+
+  // Hardware (3D) and everything else: generative thumb + a 3D badge.
   return (
     <div className={cn("relative", className)}>
       <Thumb seed={asset.seed} />

@@ -60,9 +60,12 @@ function makeGeometry(kind: number): THREE.BufferGeometry {
 
 export function ThreeViewer({
   seed,
+  src,
   className,
 }: {
   seed: string;
+  /** Optional real .obj/.stl file in /public to load instead of the generative mesh. */
+  src?: string;
   className?: string;
 }) {
   const mountRef = React.useRef<HTMLDivElement>(null);
@@ -94,7 +97,46 @@ export function ThreeViewer({
       roughness: 0.28,
     });
     const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+    const pivot = new THREE.Group();
+    pivot.add(mesh);
+    scene.add(pivot);
+
+    // Load a real .obj/.stl when provided, swapping out the generative mesh.
+    let cancelled = false;
+    // Recenter the object at the origin and scale the pivot so it spins in place.
+    const fit = (o: THREE.Object3D) => {
+      const box = new THREE.Box3().setFromObject(o);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      o.position.set(-center.x, -center.y, -center.z);
+      pivot.scale.setScalar(1.9 / maxDim);
+    };
+    if (src && /\.stl$/i.test(src)) {
+      import("three/examples/jsm/loaders/STLLoader.js").then(({ STLLoader }) => {
+        new STLLoader().load(src, (geo) => {
+          if (cancelled) return;
+          const m = new THREE.Mesh(geo, material);
+          m.rotation.x = -Math.PI / 2; // STL is usually Z-up
+          pivot.remove(mesh);
+          pivot.add(m);
+          fit(m);
+        });
+      });
+    } else if (src && /\.obj$/i.test(src)) {
+      import("three/examples/jsm/loaders/OBJLoader.js").then(({ OBJLoader }) => {
+        new OBJLoader().load(src, (obj) => {
+          if (cancelled) return;
+          obj.traverse((c) => {
+            const m = c as THREE.Mesh;
+            if (m.isMesh) m.material = material;
+          });
+          pivot.remove(mesh);
+          pivot.add(obj);
+          fit(obj);
+        });
+      });
+    }
 
     // Lighting — neutral studio setup.
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -123,8 +165,8 @@ export function ThreeViewer({
       if (!dragging) return;
       velY = (e.clientX - px) * 0.005;
       velX = (e.clientY - py) * 0.005;
-      mesh.rotation.y += velY;
-      mesh.rotation.x += velX;
+      pivot.rotation.y += velY;
+      pivot.rotation.x += velX;
       px = e.clientX;
       py = e.clientY;
     };
@@ -150,8 +192,8 @@ export function ThreeViewer({
     const animate = () => {
       raf = requestAnimationFrame(animate);
       if (!dragging) {
-        mesh.rotation.y += velY;
-        mesh.rotation.x += velX * 0.6;
+        pivot.rotation.y += velY;
+        pivot.rotation.x += velX * 0.6;
       }
       renderer.render(scene, camera);
     };
@@ -169,19 +211,23 @@ export function ThreeViewer({
     ro.observe(mount);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("wheel", onWheel);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      geometry.dispose();
+      pivot.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.geometry) m.geometry.dispose();
+      });
       material.dispose();
       tex.dispose();
       renderer.dispose();
       mount.removeChild(el);
     };
-  }, [seed]);
+  }, [seed, src]);
 
   return <div ref={mountRef} className={className} />;
 }

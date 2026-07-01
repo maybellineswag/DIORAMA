@@ -740,18 +740,18 @@ export function product(id: string): Product | undefined {
 
 // ── Assets ───────────────────────────────────────────────────
 export const ASSETS: Asset[] = [
-  { id: "as-logo-primary", name: "Olivine Primary Wordmark", category: "Graphics", fileType: "SVG", collection: "Core Staples", productType: "Brand", season: "Core", size: "24 KB", updated: "2026-06-01", seed: "g-wordmark" },
-  { id: "as-motif-leaf", name: "Reliquary Leaf Motif", category: "Graphics", fileType: "AI", collection: "AW25 — Reliquary", productType: "Hoodie", season: "AW25", size: "3.1 MB", updated: "2026-05-20", seed: "g-leaf" },
-  { id: "as-repeat-tide", name: "Saltwater Tide Repeat", category: "Graphics", fileType: "PNG", collection: "SS25 — Saltwater", productType: "Scarf", season: "SS25", size: "5.4 MB", updated: "2026-04-11", seed: "g-tide" },
-  { id: "as-chain", name: "Chain-Stitch Embroidery", category: "Graphics", fileType: "AI", collection: "Capsule 01 — Ember", productType: "Scarf", season: "Resort 25", size: "2.2 MB", updated: "2026-06-09", seed: "g-chain" },
+  { id: "as-logo-primary", name: "Olivine Primary Wordmark", category: "Graphics", fileType: "SVG", collection: "Core Staples", productType: "Brand", season: "Core", size: "24 KB", updated: "2026-06-01", seed: "g-wordmark", src: "/file-assets/olivine-logo.svg" },
+  { id: "as-motif-leaf", name: "Reliquary Leaf Motif", category: "Graphics", fileType: "AI", collection: "AW25 — Reliquary", productType: "Hoodie", season: "AW25", size: "3.1 MB", updated: "2026-05-20", seed: "g-leaf", src: "/file-assets/leafmotif.ai" },
+  { id: "as-repeat-tide", name: "Saltwater Tide Repeat", category: "Graphics", fileType: "JPG", collection: "SS25 — Saltwater", productType: "Scarf", season: "SS25", size: "5.4 MB", updated: "2026-04-11", seed: "g-tide", src: "/file-assets/saltwaterpattern.jpg" },
+  { id: "as-chain", name: "Chain-Stitch Embroidery", category: "Graphics", fileType: "AI", collection: "Capsule 01 — Ember", productType: "Scarf", season: "Resort 25", size: "2.2 MB", updated: "2026-06-09", seed: "g-chain", src: "/file-assets/chainstitchembroidery.ai" },
 
-  { id: "as-zip", name: "Antique-Nickel Zipper", category: "Hardware", fileType: "GLB", collection: "AW25 — Reliquary", productType: "Bomber Jacket", season: "AW25", size: "1.8 MB", updated: "2026-05-15", seed: "h-zip" },
-  { id: "as-buckle", name: "Cast Utility Buckle", category: "Hardware", fileType: "STL", collection: "AW25 — Reliquary", productType: "Cargo Pants", season: "AW25", size: "2.4 MB", updated: "2026-05-18", seed: "h-buckle" },
-  { id: "as-eyelet", name: "Brass Eyelet", category: "Hardware", fileType: "GLB", collection: "Core Staples", productType: "Tote Bag", season: "Core", size: "640 KB", updated: "2026-03-30", seed: "h-eyelet" },
+  { id: "as-zip", name: "Antique-Nickel Zipper", category: "Hardware", fileType: "OBJ", collection: "AW25 — Reliquary", productType: "Bomber Jacket", season: "AW25", size: "1.8 MB", updated: "2026-05-15", seed: "h-zip", src: "/file-assets/zipper.obj" },
+  { id: "as-buckle", name: "Cast Utility Buckle", category: "Hardware", fileType: "STL", collection: "AW25 — Reliquary", productType: "Cargo Pants", season: "AW25", size: "2.4 MB", updated: "2026-05-18", seed: "h-buckle", src: "/file-assets/buckle.stl" },
+  { id: "as-eyelet", name: "Brass Eyelet", category: "Hardware", fileType: "STL", collection: "Core Staples", productType: "Tote Bag", season: "Core", size: "640 KB", updated: "2026-03-30", seed: "h-eyelet", src: "/file-assets/eyelet.stl" },
 
-  { id: "as-carelabel", name: "Woven Care Label", category: "Notions", fileType: "PDF", collection: "Core Staples", productType: "Brand", season: "Core", size: "210 KB", updated: "2026-02-12", seed: "n-care" },
-  { id: "as-wovenlabel", name: "Olivine Woven Tab", category: "Notions", fileType: "PNG", collection: "Core Staples", productType: "Brand", season: "Core", size: "180 KB", updated: "2026-02-12", seed: "n-tab" },
-  { id: "as-button", name: "Corozo Button — 4-Hole", category: "Notions", fileType: "JPG", collection: "AW25 — Reliquary", productType: "Knit Sweater", season: "AW25", size: "320 KB", updated: "2026-05-02", seed: "n-button" },
+  { id: "as-carelabel", name: "Woven Care Label", category: "Notions", fileType: "PDF", collection: "Core Staples", productType: "Brand", season: "Core", size: "210 KB", updated: "2026-02-12", seed: "n-care", src: "/file-assets/wovencarelabel.pdf" },
+  { id: "as-wovenlabel", name: "Olivine Woven Tab", category: "Notions", fileType: "PDF", collection: "Core Staples", productType: "Brand", season: "Core", size: "180 KB", updated: "2026-02-12", seed: "n-tab", src: "/file-assets/woventag.pdf" },
+  { id: "as-button", name: "Corozo Button — 4-Hole", category: "Notions", fileType: "JPG", collection: "AW25 — Reliquary", productType: "Knit Sweater", season: "AW25", size: "320 KB", updated: "2026-05-02", seed: "n-button", src: "/file-assets/corozobutton.jpg" },
 
   {
     id: "as-piece-hoodie",
@@ -792,9 +792,9 @@ export const ASSETS: Asset[] = [
     ],
   },
 
-  { id: "as-tpl-techpack", name: "Techpack Template", category: "Templates", fileType: "INDD", collection: "Core Staples", productType: "Brand", season: "Core", size: "1.2 MB", updated: "2026-01-05", seed: "t-techpack" },
+  { id: "as-tpl-techpack", name: "Techpack Template", category: "Templates", fileType: "PDF", collection: "Core Staples", productType: "Brand", season: "Core", size: "1.2 MB", updated: "2026-01-05", seed: "t-techpack", src: "/file-assets/techpacktemplate.pdf" },
   { id: "as-tpl-linesheet", name: "Line Sheet Template", category: "Templates", fileType: "INDD", collection: "Core Staples", productType: "Brand", season: "Core", size: "980 KB", updated: "2026-01-05", seed: "t-linesheet" },
-  { id: "as-tpl-mockup", name: "Flat Mockup Kit", category: "Templates", fileType: "PSD", collection: "Core Staples", productType: "Brand", season: "Core", size: "44 MB", updated: "2026-02-20", seed: "t-mockup" },
+  { id: "as-tpl-mockup", name: "Flat Mockup Kit", category: "Templates", fileType: "PSD", collection: "Core Staples", productType: "Brand", season: "Core", size: "44 MB", updated: "2026-02-20", seed: "t-mockup", src: "/file-assets/mockup.psd" },
 ];
 
 export const GUIDES: Guide[] = [

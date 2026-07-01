@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Download, ExternalLink, FileText, Maximize2 } from "lucide-react";
+import { ArrowRight, Download, ExternalLink, FileText, Maximize2, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Thumb } from "@/components/thumb";
 import { ThreeViewer } from "@/components/three-viewer";
-import { isDoc, is3D } from "@/components/app/asset-tile";
+import { isDoc, is3D, isImage, isPdf } from "@/components/app/asset-tile";
 import type { Asset } from "@/lib/mock/types";
 import type { Piece } from "@/lib/mock/library";
 
@@ -53,13 +54,30 @@ export function AssetQuickLook({
   const name = asset?.name ?? upload?.name ?? "";
   const fileType = asset?.fileType ?? upload?.fileType ?? "";
   const threeD = asset ? is3D(asset) : false;
+  const downloadHref = asset?.src ?? upload?.dataUrl;
+
+  const share = async () => {
+    const link =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${asset ? `/assets?file=${asset.id}` : ""}`
+        : "";
+    try {
+      await navigator.clipboard?.writeText(link || name);
+      toast.success("Share link copied to clipboard");
+    } catch {
+      toast.success("Share link ready", { description: link || name });
+    }
+  };
 
   const media = upload?.dataUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={upload.dataUrl} alt="" className="size-full object-contain" />
+  ) : asset?.src && isImage(fileType) ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={asset.src} alt={name} className="size-full object-contain" />
   ) : threeD && asset ? (
     <>
-      <ThreeViewer seed={asset.seed} className="size-full" />
+      <ThreeViewer seed={asset.seed} src={asset.src} className="size-full" />
       <button
         onClick={() => setFull(true)}
         className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-md bg-paper/80 text-ink-soft backdrop-blur hover:text-foreground cursor-pointer"
@@ -70,12 +88,15 @@ export function AssetQuickLook({
         Live 3D · drag to rotate · scroll to zoom
       </div>
     </>
+  ) : asset?.src && isPdf(fileType) ? (
+    <iframe src={`${asset.src}#toolbar=0`} title={name} className="size-full" />
   ) : asset && !isDoc(asset.fileType) ? (
     <Thumb seed={asset.seed} />
   ) : (
     <div className="flex h-full flex-col items-center justify-center gap-2 text-ink-faint">
       <FileText className="size-9" />
-      <span className="text-sm">{fileType || "File"} document</span>
+      <span className="text-sm">{fileType || "File"} file</span>
+      {downloadHref && <span className="text-xs">No inline preview — download to open</span>}
     </div>
   );
 
@@ -163,15 +184,32 @@ export function AssetQuickLook({
                 </>
               )}
 
-              <div className="mt-auto flex gap-2 pt-5">
-                {onOpenSource && (
-                  <Button variant="secondary" className="flex-1" onClick={onOpenSource}>
-                    <ExternalLink className="size-4" /> Open source
-                  </Button>
-                )}
-                <Button className="flex-1">
-                  <Download className="size-4" /> Download
+              <div className="mt-auto space-y-2 pt-5">
+                <Button className="w-full" onClick={share}>
+                  <Share2 className="size-4" /> Share
                 </Button>
+                <div className="flex gap-2">
+                  {onOpenSource && (
+                    <Button variant="secondary" className="flex-1" onClick={onOpenSource}>
+                      <ExternalLink className="size-4" /> Open source
+                    </Button>
+                  )}
+                  {downloadHref ? (
+                    <Button asChild variant="secondary" className="flex-1">
+                      <a href={downloadHref} download={name}>
+                        <Download className="size-4" /> Download
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={() => toast.success("Download is simulated in this prototype.")}
+                    >
+                      <Download className="size-4" /> Download
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
