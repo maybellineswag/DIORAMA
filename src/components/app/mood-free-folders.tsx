@@ -1,7 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { Plus, LayoutGrid, FolderPlus } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_KEY = "diorama.mood.folderPositions.v1";
 
@@ -52,6 +56,7 @@ export function MoodFreeFolders({
   storageKey = DEFAULT_KEY,
   addLabel = "Add category",
   scatter = false,
+  toolbar = false,
 }: {
   categories: string[];
   countFor: (c: string) => number;
@@ -60,6 +65,7 @@ export function MoodFreeFolders({
   storageKey?: string;
   addLabel?: string;
   scatter?: boolean;
+  toolbar?: boolean;
 }) {
   const cats = categories.filter((c) => c !== "All");
   const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats, scatter));
@@ -105,6 +111,20 @@ export function MoodFreeFolders({
     }
   };
 
+  // Finder-style "Clean Up": snap folders to a neat grid, with a brief glide.
+  const [gliding, setGliding] = React.useState(false);
+  const tidy = () => {
+    const np: Pos = {};
+    cats.forEach((c, i) => {
+      np[c] = { x: 20 + (i % 5) * 150, y: 16 + Math.floor(i / 5) * 168 };
+    });
+    setGliding(true);
+    setPos(np);
+    save(np);
+    toast.success("Cleaned up");
+    setTimeout(() => setGliding(false), 400);
+  };
+
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -136,12 +156,23 @@ export function MoodFreeFolders({
     : { x: 24 + (cats.length % 4) * 210, y: 24 + Math.floor(cats.length / 4) * 180 };
 
   return (
-    <div
-      className="relative min-h-[60vh] touch-none rounded-xl"
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerLeave={onUp}
-    >
+    <div>
+      {toolbar && (
+        <div className="mb-2 flex items-center justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={tidy}>
+            <LayoutGrid className="size-4" /> Tidy up
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onAdd}>
+            <FolderPlus className="size-4" /> {addLabel}
+          </Button>
+        </div>
+      )}
+      <div
+        className="relative min-h-[60vh] touch-none rounded-xl"
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerLeave={onUp}
+      >
       {cats.map((c) => {
         const p = pos[c] ?? { x: 0, y: 0 };
         return (
@@ -153,7 +184,10 @@ export function MoodFreeFolders({
               (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
             }}
             style={{ left: p.x, top: p.y }}
-            className="group absolute flex w-32 cursor-grab select-none flex-col items-center gap-1.5 rounded-xl p-2 active:cursor-grabbing"
+            className={cn(
+              "group absolute flex w-32 cursor-grab select-none flex-col items-center gap-1.5 rounded-xl p-2 active:cursor-grabbing",
+              gliding && "transition-[left,top] duration-300 ease-out",
+            )}
           >
             <FolderGlyph className="pointer-events-none w-28 transition-transform duration-150 group-active:scale-[0.98]" />
             <div className="flex items-baseline gap-1.5">
@@ -164,16 +198,19 @@ export function MoodFreeFolders({
         );
       })}
 
-      <button
-        onClick={onAdd}
-        style={{ left: addSlot.x, top: addSlot.y }}
-        className="group absolute flex w-32 flex-col items-center gap-1.5 rounded-xl p-2 text-ink-faint transition-colors hover:text-foreground cursor-pointer"
-      >
-        <span className="flex h-[88px] w-28 items-center justify-center rounded-xl border-2 border-dashed">
-          <Plus className="size-7" />
-        </span>
-        <span className="text-sm">{addLabel}</span>
-      </button>
+      {!toolbar && (
+        <button
+          onClick={onAdd}
+          style={{ left: addSlot.x, top: addSlot.y }}
+          className="group absolute flex w-32 flex-col items-center gap-1.5 rounded-xl p-2 text-ink-faint transition-colors hover:text-foreground cursor-pointer"
+        >
+          <span className="flex h-[88px] w-28 items-center justify-center rounded-xl border-2 border-dashed">
+            <Plus className="size-7" />
+          </span>
+          <span className="text-sm">{addLabel}</span>
+        </button>
+      )}
+      </div>
     </div>
   );
 }

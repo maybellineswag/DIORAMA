@@ -11,6 +11,7 @@ import {
   ClipboardPaste,
   Copy,
   CopyPlus,
+  Download,
   ExternalLink,
   FileText,
   Plus,
@@ -21,11 +22,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AssetTile } from "@/components/app/asset-tile";
+import { AssetTile, isDoc, is3D } from "@/components/app/asset-tile";
 import { Thumb } from "@/components/thumb";
+import { ThreeViewer } from "@/components/three-viewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -167,6 +176,7 @@ export default function PiecePage() {
   >(null);
   const [picker, setPicker] = React.useState<{ slot: SlotKey; cat: string } | null>(null);
   const [uploads, setUploads] = React.useState<Record<string, Upload>>({});
+  const [preview, setPreview] = React.useState<string | null>(null);
   const [dragSlot, setDragSlot] = React.useState<SlotKey | null>(null);
   const uploadCtx = React.useRef<SlotKey | null>(null);
   const fileInput = React.useRef<HTMLInputElement>(null);
@@ -329,23 +339,28 @@ export default function PiecePage() {
                         key={`${id}-${idx}`}
                         className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2"
                       >
-                        <span className="size-11 shrink-0 overflow-hidden rounded-md border">
-                          {up?.dataUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={up.dataUrl} alt="" className="size-full object-cover" />
-                          ) : up ? (
-                            <span className="flex size-full flex-col items-center justify-center gap-0.5 bg-surface-2 text-ink-faint">
-                              <FileText className="size-4" />
-                              <span className="text-[8px]">{up.fileType}</span>
-                            </span>
-                          ) : (
-                            <AssetTile asset={libAsset} className="size-full" />
-                          )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{info.name}</p>
-                          <p className="text-[11px] text-ink-faint">{info.fileType} · {info.size}</p>
-                        </div>
+                        <button
+                          onClick={() => setPreview(id)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer"
+                        >
+                          <span className="size-11 shrink-0 overflow-hidden rounded-md border">
+                            {up?.dataUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={up.dataUrl} alt="" className="size-full object-cover" />
+                            ) : up ? (
+                              <span className="flex size-full flex-col items-center justify-center gap-0.5 bg-surface-2 text-ink-faint">
+                                <FileText className="size-4" />
+                                <span className="text-[8px]">{up.fileType}</span>
+                              </span>
+                            ) : (
+                              <AssetTile asset={libAsset} className="size-full" />
+                            )}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{info.name}</p>
+                            <p className="text-[11px] text-ink-faint">{info.fileType} · {info.size}</p>
+                          </div>
+                        </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button className="px-1 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer">
@@ -411,6 +426,54 @@ export default function PiecePage() {
           e.target.value = "";
         }}
       />
+
+      {/* File preview */}
+      {(() => {
+        if (!preview) return null;
+        const up = uploads[preview];
+        const lib = assetById(preview);
+        const info = resolve(preview);
+        if (!info) return null;
+        return (
+          <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="truncate">{info.name}</DialogTitle>
+                <DialogDescription>{info.fileType} · {info.size}</DialogDescription>
+              </DialogHeader>
+              <div className="flex min-h-[320px] items-center justify-center overflow-hidden rounded-xl border bg-surface-2">
+                {up?.dataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={up.dataUrl} alt="" className="max-h-[60vh] w-full object-contain" />
+                ) : lib && is3D(lib) ? (
+                  <ThreeViewer seed={lib.seed} className="h-[50vh] w-full" />
+                ) : lib && !isDoc(lib.fileType) ? (
+                  <div className="size-64 overflow-hidden rounded-lg">
+                    <AssetTile asset={lib} className="size-full" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-16 text-ink-faint">
+                    <FileText className="size-9" />
+                    <span className="text-sm">{info.fileType} preview</span>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                {lib && (
+                  <Button asChild variant="ghost">
+                    <Link href={`/assets?file=${preview}`}>
+                      <ExternalLink className="size-4" /> Open source
+                    </Link>
+                  </Button>
+                )}
+                <Button onClick={() => toast.success("Download is simulated in this prototype.")}>
+                  <Download className="size-4" /> Download
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }

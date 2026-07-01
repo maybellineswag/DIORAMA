@@ -351,6 +351,7 @@ export default function AssetsPage() {
               storageKey="diorama.library.folderPositions.v1"
               addLabel="New folder"
               scatter
+              toolbar
             />
           )}
         </>
