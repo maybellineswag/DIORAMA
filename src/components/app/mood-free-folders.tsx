@@ -7,10 +7,25 @@ const DEFAULT_KEY = "diorama.mood.folderPositions.v1";
 
 type Pos = Record<string, { x: number; y: number }>;
 
-function defaultPos(cats: string[]): Pos {
+function hash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function slotFor(cat: string, i: number, scatter: boolean): { x: number; y: number } {
+  if (!scatter) return { x: 24 + (i % 4) * 210, y: 24 + Math.floor(i / 4) * 180 };
+  // Loose grid + deterministic jitter so folders feel scattered but rarely overlap.
+  return {
+    x: 24 + (i % 3) * 205 + (hash(cat) % 80) - 40,
+    y: 24 + Math.floor(i / 3) * 185 + (hash(cat + "y") % 70) - 35,
+  };
+}
+
+function defaultPos(cats: string[], scatter: boolean): Pos {
   const o: Pos = {};
   cats.forEach((c, i) => {
-    o[c] = { x: 24 + (i % 4) * 210, y: 24 + Math.floor(i / 4) * 180 };
+    o[c] = slotFor(c, i, scatter);
   });
   return o;
 }
@@ -36,6 +51,7 @@ export function MoodFreeFolders({
   onAdd,
   storageKey = DEFAULT_KEY,
   addLabel = "Add category",
+  scatter = false,
 }: {
   categories: string[];
   countFor: (c: string) => number;
@@ -43,9 +59,10 @@ export function MoodFreeFolders({
   onAdd: () => void;
   storageKey?: string;
   addLabel?: string;
+  scatter?: boolean;
 }) {
   const cats = categories.filter((c) => c !== "All");
-  const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats));
+  const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats, scatter));
   const drag = React.useRef<{
     cat: string;
     sx: number;
@@ -72,7 +89,7 @@ export function MoodFreeFolders({
       const np = { ...p };
       cats.forEach((c, i) => {
         if (!np[c]) {
-          np[c] = { x: 24 + (i % 4) * 210, y: 24 + Math.floor(i / 4) * 180 };
+          np[c] = slotFor(c, i, scatter);
           changed = true;
         }
       });
@@ -114,10 +131,9 @@ export function MoodFreeFolders({
     }
   };
 
-  const addSlot = {
-    x: 24 + (cats.length % 4) * 210,
-    y: 24 + Math.floor(cats.length / 4) * 180,
-  };
+  const addSlot = scatter
+    ? slotFor("__add__", cats.length, true)
+    : { x: 24 + (cats.length % 4) * 210, y: 24 + Math.floor(cats.length / 4) * 180 };
 
   return (
     <div

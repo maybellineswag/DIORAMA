@@ -350,6 +350,7 @@ export default function AssetsPage() {
               onAdd={() => toast.success("New library folder is simulated in this prototype.")}
               storageKey="diorama.library.folderPositions.v1"
               addLabel="New folder"
+              scatter
             />
           )}
         </>

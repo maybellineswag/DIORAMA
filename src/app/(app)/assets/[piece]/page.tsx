@@ -40,6 +40,12 @@ import {
   assetById,
   type SlotKey,
 } from "@/lib/mock/library";
+import { cn } from "@/lib/utils";
+
+type Upload = { id: string; name: string; fileType: string; size: string; dataUrl?: string };
+
+const prettySize = (b: number) =>
+  b < 1024 ? `${b} B` : b < 1_048_576 ? `${Math.round(b / 1024)} KB` : `${(b / 1_048_576).toFixed(1)} MB`;
 
 // ── Radial quick-add wheel (opens on hover) ──────────────────
 const WHEEL: { key: string; label: string; icon: typeof Box }[] = [
@@ -68,35 +74,39 @@ function RadialAdd({ onPick }: { onPick: (cat: string) => void }) {
       >
         <Plus className="size-4" />
       </button>
-      {open && (
-        <div className="absolute right-1/2 top-1/2 z-30 size-44 -translate-y-1/2 translate-x-1/2">
-          <span className="absolute left-1/2 top-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent-soft text-accent-ink shadow-sm">
-            <Plus className="size-4" />
-          </span>
-          {WHEEL.map((it, i) => {
-            const angle = (i / WHEEL.length) * 2 * Math.PI - Math.PI / 2;
-            const r = 58;
-            const Icon = it.icon;
-            return (
-              <button
-                key={it.key}
-                onClick={() => {
-                  onPick(it.key);
-                  setOpen(false);
-                }}
-                style={{
-                  left: `calc(50% + ${Math.cos(angle) * r}px)`,
-                  top: `calc(50% + ${Math.sin(angle) * r}px)`,
-                }}
-                className="absolute flex size-12 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-full border bg-card text-ink-soft shadow-sm transition-all hover:scale-105 hover:border-accent/50 hover:text-accent-ink cursor-pointer"
-              >
-                <Icon className="size-4" />
-                <span className="text-[9px] leading-none">{it.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div
+        className={cn(
+          "absolute right-1/2 top-1/2 z-30 size-44 origin-center -translate-y-1/2 translate-x-1/2 transition-all duration-200 ease-out",
+          open ? "scale-100 opacity-100" : "pointer-events-none scale-50 opacity-0",
+        )}
+      >
+        <span className="absolute left-1/2 top-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent-soft text-accent-ink shadow-sm">
+          <Plus className="size-4" />
+        </span>
+        {WHEEL.map((it, i) => {
+          const angle = (i / WHEEL.length) * 2 * Math.PI - Math.PI / 2;
+          const r = 58;
+          const Icon = it.icon;
+          return (
+            <button
+              key={it.key}
+              onClick={() => {
+                onPick(it.key);
+                setOpen(false);
+              }}
+              style={{
+                left: `calc(50% + ${Math.cos(angle) * r}px)`,
+                top: `calc(50% + ${Math.sin(angle) * r}px)`,
+                transitionDelay: open ? `${i * 25}ms` : "0ms",
+              }}
+              className="absolute flex size-12 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-full border bg-card text-ink-soft shadow-sm transition-transform duration-150 hover:scale-110 hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+            >
+              <Icon className="size-4" />
+              <span className="text-[9px] leading-none">{it.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -156,6 +166,10 @@ export default function PiecePage() {
     { assetId: string; cut?: SlotKey } | null
   >(null);
   const [picker, setPicker] = React.useState<{ slot: SlotKey; cat: string } | null>(null);
+  const [uploads, setUploads] = React.useState<Record<string, Upload>>({});
+  const [dragSlot, setDragSlot] = React.useState<SlotKey | null>(null);
+  const uploadCtx = React.useRef<SlotKey | null>(null);
+  const fileInput = React.useRef<HTMLInputElement>(null);
 
   if (!base || !slots) {
     return (
@@ -187,6 +201,32 @@ export default function PiecePage() {
   };
 
   const total = Object.values(slots).reduce((n, ids) => n + ids.length, 0);
+
+  const resolve = (id: string): { name: string; fileType: string; size: string } | undefined =>
+    uploads[id] ?? assetById(id);
+
+  const addFiles = (slot: SlotKey, list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    Array.from(list).forEach((file) => {
+      const id = `up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const ext = file.name.split(".").pop()?.toUpperCase() ?? "FILE";
+      const meta: Upload = { id, name: file.name, fileType: ext, size: prettySize(file.size) };
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = () => setUploads((u) => ({ ...u, [id]: { ...meta, dataUrl: reader.result as string } }));
+        reader.readAsDataURL(file);
+      } else {
+        setUploads((u) => ({ ...u, [id]: meta }));
+      }
+      addAsset(slot, id);
+    });
+    toast.success(list.length === 1 ? "File uploaded" : `${list.length} files uploaded`);
+  };
+
+  const openUpload = (slot: SlotKey) => {
+    uploadCtx.current = slot;
+    fileInput.current?.click();
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
@@ -225,7 +265,23 @@ export default function PiecePage() {
         {SLOTS.map((slot) => {
           const ids = slots[slot];
           return (
-            <section key={slot} className="rounded-xl border bg-card p-4">
+            <section
+              key={slot}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragSlot(slot);
+              }}
+              onDragLeave={() => setDragSlot((s) => (s === slot ? null : s))}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragSlot(null);
+                addFiles(slot, e.dataTransfer.files);
+              }}
+              className={cn(
+                "rounded-xl border bg-card p-4 transition-colors",
+                dragSlot === slot && "border-accent/60 bg-accent-soft/20",
+              )}
+            >
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
                   {slot}
@@ -244,7 +300,7 @@ export default function PiecePage() {
                   <RadialAdd
                     onPick={(cat) => {
                       if (cat === "upload") {
-                        toast.success("Upload is simulated in this prototype.");
+                        openUpload(slot);
                         return;
                       }
                       setPicker({ slot, cat });
@@ -254,25 +310,41 @@ export default function PiecePage() {
               </div>
 
               {ids.length === 0 ? (
-                <div className="rounded-lg border border-dashed py-5 text-center text-xs text-ink-faint">
-                  Empty — hover + to add from library
-                </div>
+                <button
+                  onClick={() => openUpload(slot)}
+                  className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-xs text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                >
+                  <Upload className="size-4" />
+                  Drop files or click to upload · hover + for library
+                </button>
               ) : (
                 <div className="space-y-2">
                   {ids.map((id, idx) => {
-                    const a = assetById(id);
-                    if (!a) return null;
+                    const up = uploads[id];
+                    const info = resolve(id);
+                    if (!info) return null;
+                    const libAsset = assetById(id);
                     return (
                       <div
                         key={`${id}-${idx}`}
                         className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2"
                       >
                         <span className="size-11 shrink-0 overflow-hidden rounded-md border">
-                          <AssetTile asset={a} className="size-full" />
+                          {up?.dataUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={up.dataUrl} alt="" className="size-full object-cover" />
+                          ) : up ? (
+                            <span className="flex size-full flex-col items-center justify-center gap-0.5 bg-surface-2 text-ink-faint">
+                              <FileText className="size-4" />
+                              <span className="text-[8px]">{up.fileType}</span>
+                            </span>
+                          ) : (
+                            <AssetTile asset={libAsset} className="size-full" />
+                          )}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{a.name}</p>
-                          <p className="text-[11px] text-ink-faint">{a.fileType} · {a.size}</p>
+                          <p className="truncate text-sm font-medium">{info.name}</p>
+                          <p className="text-[11px] text-ink-faint">{info.fileType} · {info.size}</p>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -281,11 +353,13 @@ export default function PiecePage() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/assets?file=${id}`}>
-                                <ExternalLink className="size-4" /> Open source
-                              </Link>
-                            </DropdownMenuItem>
+                            {libAsset && (
+                              <DropdownMenuItem asChild>
+                                <Link href={`/assets?file=${id}`}>
+                                  <ExternalLink className="size-4" /> Open source
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() => {
                                 setClipboard({ assetId: id });
@@ -325,6 +399,17 @@ export default function PiecePage() {
         category={picker?.cat ?? null}
         onOpenChange={(v) => !v && setPicker(null)}
         onAdd={(assetId) => picker && addAsset(picker.slot, assetId)}
+      />
+
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          if (uploadCtx.current) addFiles(uploadCtx.current, e.target.files);
+          e.target.value = "";
+        }}
       />
     </div>
   );

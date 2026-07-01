@@ -8,7 +8,6 @@ import {
   FileText,
   Factory,
   ArrowRight,
-  Paperclip,
   Download,
   Folder,
   Star,
@@ -21,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { Product, SampleCandidate, SampleRound, Priority } from "@/lib/mock/types";
+import type { Product, SampleCandidate, SampleRound, Priority, FileRef } from "@/lib/mock/types";
 import {
   manufacturer,
   capableManufacturers,
@@ -36,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge, StatusBadge } from "@/components/app/bits";
 import { Thumb } from "@/components/thumb";
+import { ThreeViewer } from "@/components/three-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -885,6 +885,41 @@ export function ProductDetail({
   const mf = manufacturer(product.manufacturerId);
   const patch = (p: Partial<Product>, action?: string) => onUpdate?.(p, action);
 
+  // Files: preview + real upload / drag-and-drop.
+  const [filePreview, setFilePreview] = React.useState<FileRef | null>(null);
+  const [fileData, setFileData] = React.useState<Record<string, string>>({});
+  const [dragFiles, setDragFiles] = React.useState(false);
+  const fileInput = React.useRef<HTMLInputElement>(null);
+
+  const kindFor = (name: string): FileRef["kind"] => {
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (["png", "jpg", "jpeg", "webp", "gif", "svg", "ai", "psd"].includes(ext)) return "Image";
+    if (["obj", "glb", "gltf", "stl", "fbx"].includes(ext)) return "3D";
+    if (["dxf", "plt"].includes(ext)) return "Pattern";
+    if (name.toLowerCase().includes("techpack")) return "Techpack";
+    return "Doc";
+  };
+  const prettySize = (b: number) =>
+    b < 1024 ? `${b} B` : b < 1_048_576 ? `${Math.round(b / 1024)} KB` : `${(b / 1_048_576).toFixed(1)} MB`;
+
+  const addFiles = (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    const refs: FileRef[] = Array.from(list).map((file) => {
+      const id = `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = () => setFileData((d) => ({ ...d, [id]: reader.result as string }));
+        reader.readAsDataURL(file);
+      }
+      return { id, name: file.name, kind: kindFor(file.name), size: prettySize(file.size) };
+    });
+    patch(
+      { files: [...product.files, ...refs] },
+      refs.length === 1 ? `uploaded ${refs[0].name}` : `uploaded ${refs.length} files`,
+    );
+    toast.success(refs.length === 1 ? "File uploaded" : `${refs.length} files uploaded`);
+  };
+
   return (
     <>
       <SheetHeader>
@@ -1064,7 +1099,7 @@ export function ProductDetail({
             <RoundsTab product={product} onUpdate={onUpdate} />
           </TabsContent>
 
-          {/* Files — grouped by kind, with a jump to the full folder in Assets */}
+          {/* Files — a real folder: clickable, uploadable, drag-and-drop */}
           <TabsContent value="files" className="mt-0 space-y-4">
             {(() => {
               const piece = pieceFor(product);
@@ -1087,37 +1122,118 @@ export function ProductDetail({
               );
             })()}
 
-            {product.files.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-                <Paperclip className="size-6 text-ink-faint" />
-                <p className="text-sm text-ink-soft">No files attached yet</p>
-              </div>
-            ) : (
-              Array.from(new Set(product.files.map((f) => f.kind))).map((kind) => (
-                <div key={kind} className="space-y-2">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-                    {kind}
-                  </p>
-                  {product.files
-                    .filter((f) => f.kind === kind)
-                    .map((f) => (
-                      <div
-                        key={f.id}
-                        className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-3 transition-colors hover:border-ink-faint/40"
-                      >
-                        <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
-                          <FileText className="size-4 text-ink-soft" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm">{f.name}</p>
-                          <p className="text-xs text-ink-faint">{f.size}</p>
-                        </div>
-                        <Download className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
-                      </div>
-                    ))}
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragFiles(true);
+              }}
+              onDragLeave={() => setDragFiles(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragFiles(false);
+                addFiles(e.dataTransfer.files);
+              }}
+              className={cn(
+                "rounded-xl border border-dashed transition-colors",
+                dragFiles ? "border-accent/60 bg-accent-soft/30" : "border-border",
+                product.files.length === 0 ? "" : "p-3",
+              )}
+            >
+              {product.files.length === 0 ? (
+                <button
+                  onClick={() => fileInput.current?.click()}
+                  className="flex w-full flex-col items-center justify-center gap-2 py-10 text-center text-ink-faint transition-colors hover:text-foreground cursor-pointer"
+                >
+                  <Upload className="size-6" />
+                  <p className="text-sm">Drop files here, or click to upload</p>
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  {Array.from(new Set(product.files.map((f) => f.kind))).map((kind) => (
+                    <div key={kind} className="space-y-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                        {kind}
+                      </p>
+                      {product.files
+                        .filter((f) => f.kind === kind)
+                        .map((f) => (
+                          <button
+                            key={f.id}
+                            onClick={() => setFilePreview(f)}
+                            className="group flex w-full items-center gap-3 rounded-lg border bg-surface-2/40 p-3 text-left transition-colors hover:border-ink-faint/40 hover:bg-surface-hi cursor-pointer"
+                          >
+                            <span className="size-9 shrink-0 overflow-hidden rounded-md border bg-surface-hi">
+                              {fileData[f.id] ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={fileData[f.id]} alt="" className="size-full object-cover" />
+                              ) : (
+                                <span className="flex size-full items-center justify-center">
+                                  <FileText className="size-4 text-ink-soft" />
+                                </span>
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm">{f.name}</p>
+                              <p className="text-xs text-ink-faint">{f.kind} · {f.size}</p>
+                            </div>
+                            <ArrowRight className="size-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+                          </button>
+                        ))}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => fileInput.current?.click()}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                  >
+                    <Upload className="size-3.5" /> Upload more, or drag files here
+                  </button>
                 </div>
-              ))
-            )}
+              )}
+            </div>
+
+            {/* File preview */}
+            <Dialog open={!!filePreview} onOpenChange={(v) => !v && setFilePreview(null)}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="truncate">{filePreview?.name}</DialogTitle>
+                  <DialogDescription>
+                    {filePreview?.kind} · {filePreview?.size}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex min-h-[320px] items-center justify-center overflow-hidden rounded-xl border bg-surface-2">
+                  {filePreview && fileData[filePreview.id] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={fileData[filePreview.id]} alt="" className="max-h-[60vh] w-full object-contain" />
+                  ) : filePreview?.kind === "3D" ? (
+                    <ThreeViewer seed={filePreview.id} className="h-[50vh] w-full" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-16 text-ink-faint">
+                      <FileText className="size-9" />
+                      <span className="text-sm">{filePreview?.kind} preview</span>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setFilePreview(null)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => toast.success("Download is simulated in this prototype.")}>
+                    <Download className="size-4" /> Download
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Activity */}
