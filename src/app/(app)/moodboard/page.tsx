@@ -23,7 +23,6 @@ import {
   FileText,
   StickyNote,
   Link as LinkIcon,
-  Video,
   ImagePlus,
   Check,
   Users,
@@ -32,9 +31,10 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ViewSwitcher } from "@/components/app/view-switcher";
-import { MoodFreeFolders } from "@/components/app/mood-free-folders";
+import { MoodFreeFolders, FolderGlyph } from "@/components/app/mood-free-folders";
 import { MoodConnections } from "@/components/app/mood-connections";
-import { MoodAiSort } from "@/components/app/mood-ai-sort";
+import { MoodAiSortOnboarding } from "@/components/app/mood-ai-sort";
+import { MoodSorter } from "@/components/app/mood-sorter";
 import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CONNECTIONS, MOOD_IMPORTS, type Connection } from "@/lib/mock/commerce";
+import { MOODBOARD_PHOTOS } from "@/lib/mock/data";
 import {
   BOARDS,
   BLOCKS,
@@ -68,17 +69,8 @@ import {
   boardPath,
   type Board,
   type Block,
-  type BlockKind,
 } from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
-
-const KIND_ICON: Record<BlockKind, typeof Video> = {
-  image: ImagePlus,
-  video: Video,
-  link: LinkIcon,
-  file: FileText,
-  note: StickyNote,
-};
 
 function Initials({ name }: { name: string }) {
   const i = name.split(" ").map((p) => p[0]).slice(0, 2).join("");
@@ -103,7 +95,8 @@ export default function MoodboardPage() {
   const synced = connections.find((c) => c.connected);
 
   const [connOpen, setConnOpen] = React.useState(false);
-  const [aiOpen, setAiOpen] = React.useState(false);
+  const [onboardOpen, setOnboardOpen] = React.useState(false);
+  const [sorterOpen, setSorterOpen] = React.useState(false);
   const [infoBoard, setInfoBoard] = React.useState<Board | null>(null);
   const [shareBoard, setShareBoard] = React.useState<Board | null>(null);
   const [bookBoard, setBookBoard] = React.useState<Board | null>(null);
@@ -203,16 +196,31 @@ export default function MoodboardPage() {
     setAddBlock(null);
   };
 
-  const applyAiSort = (assignments: Record<string, string>, rules: Record<string, string>) => {
-    // Save rules, file each import as a new image block into its board.
+  // AI Sort: onboard once (rules), then the sorter handles ingest/modes/batches.
+  const launchAiSort = () => {
+    const onboarded = typeof window !== "undefined" && localStorage.getItem("diorama.mood.aiOnboarded");
+    if (onboarded) setSorterOpen(true);
+    else setOnboardOpen(true);
+  };
+  const completeOnboarding = (rules: Record<string, string>) => {
     setBoards((bs) => bs.map((b) => (rules[b.id] !== undefined ? { ...b, rule: rules[b.id] } : b)));
-    Object.entries(assignments).forEach(([importId, boardId]) => {
-      const im = imports.find((x) => x.id === importId);
-      if (!im) return;
-      createBlockInBoard(boardId, { kind: "image", src: im.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] });
-    });
-    setImports([]);
-    toast.success(`Filed ${Object.keys(assignments).length} references`);
+    try { localStorage.setItem("diorama.mood.aiOnboarded", "1"); } catch { /* ignore */ }
+    setOnboardOpen(false);
+    setSorterOpen(true);
+  };
+  const fileFromSorter = (items: { src: string; boardId: string }[]) => {
+    items.forEach((it) =>
+      createBlockInBoard(it.boardId, { kind: "image", src: it.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] }),
+    );
+  };
+
+  // Manual import filing.
+  const moveImport = (importId: string, boardId: string) => {
+    const im = imports.find((x) => x.id === importId);
+    if (!im) return;
+    createBlockInBoard(boardId, { kind: "image", src: im.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] });
+    setImports((xs) => xs.filter((x) => x.id !== importId));
+    toast.success("Moved to board");
   };
 
   // ── derived ──
@@ -258,7 +266,18 @@ export default function MoodboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader
-        title="Moodboard"
+        title={
+          <span className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/olivine-logo.svg"
+              alt="Olivine"
+              className="h-6 w-auto select-none dark:[filter:invert(0.92)_sepia(0.08)_saturate(0.6)_brightness(1.05)]"
+              draggable={false}
+            />
+            <span className="text-ink-faint">Moodboard</span>
+          </span>
+        }
         description="Collect references into boards — images, video, links, notes — and let AI keep them filed."
         actions={
           <div className="flex items-center gap-2">
@@ -273,14 +292,14 @@ export default function MoodboardPage() {
               />
             )}
             {synced && (
-              <span className="hidden items-center gap-1.5 rounded-full border bg-surface-2/60 px-2.5 py-1 text-xs text-ink-soft lg:flex">
+              <span className="hidden h-8 items-center gap-1.5 rounded-md border bg-surface-2/60 px-3 text-xs text-ink-soft lg:flex">
                 <RefreshCw className="size-3 text-good" /> Synced {synced.lastSynced}
               </span>
             )}
             <Button variant="secondary" size="sm" onClick={() => setConnOpen(true)}>
               <Link2 className="size-4" /> Connections
             </Button>
-            <Button size="sm" onClick={() => setAiOpen(true)}>
+            <Button size="sm" onClick={launchAiSort}>
               <Wand2 className="size-4" /> AI Sort
             </Button>
           </div>
@@ -301,10 +320,10 @@ export default function MoodboardPage() {
       {searching ? (
         <>
           <p className="text-xs text-ink-faint">{searchResults.length} references match “{query}”</p>
-          <Masonry
+          <Gallery
             blocks={searchResults}
-            boards={boards}
             selected={selected}
+            selectionActive={selected.size > 0}
             onToggle={toggleSel}
             onOpen={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
             onContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -334,8 +353,10 @@ export default function MoodboardPage() {
       ) : view === "imports" ? (
         <ImportsView
           imports={imports}
-          onSort={() => setAiOpen(true)}
+          boards={roots}
+          onSort={launchAiSort}
           onConnections={() => setConnOpen(true)}
+          onMove={moveImport}
         />
       ) : (
         /* Folders — free draggable boards, consistent with Asset Library */
@@ -368,7 +389,16 @@ export default function MoodboardPage() {
 
       {/* ── dialogs ── */}
       <MoodConnections open={connOpen} onOpenChange={setConnOpen} connections={connections} setConnections={setConnections} />
-      <MoodAiSort open={aiOpen} onOpenChange={setAiOpen} boards={roots} imports={imports} onApply={applyAiSort} />
+      <MoodAiSortOnboarding open={onboardOpen} onOpenChange={setOnboardOpen} boards={roots} onComplete={completeOnboarding} />
+      {sorterOpen && (
+        <MoodSorter
+          boards={roots}
+          sampleImages={MOODBOARD_PHOTOS}
+          onClose={() => setSorterOpen(false)}
+          onFile={fileFromSorter}
+          onEditRules={() => { setSorterOpen(false); setOnboardOpen(true); }}
+        />
+      )}
 
       <InfoDialog board={infoBoard} boards={boards} onClose={() => setInfoBoard(null)} />
       <ShareDialog board={shareBoard} onClose={() => setShareBoard(null)} onVisibility={(v) => shareBoard && setVisibility(shareBoard.id, v)} />
@@ -420,32 +450,31 @@ export default function MoodboardPage() {
   );
 }
 
-// ── Masonry of blocks ────────────────────────────────────────
-function Masonry({
+// ── Clean square gallery (iPhone-Photos style) ───────────────
+function Gallery({
   blocks,
-  boards,
   selected,
+  selectionActive,
   onToggle,
   onOpen,
   onContext,
 }: {
   blocks: Block[];
-  boards: Board[];
   selected: Set<string>;
+  selectionActive: boolean;
   onToggle: (id: string) => void;
   onOpen: (b: Block) => void;
   onContext: (b: Block, e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 [&>*]:mb-4">
+    <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {blocks.map((b) => (
-        <BlockCard
+        <GalleryCard
           key={b.id}
           block={b}
-          backlinks={boardsContaining(boards, b.id).length}
           selected={selected.has(b.id)}
+          onClick={() => (selectionActive ? onToggle(b.id) : onOpen(b))}
           onToggle={() => onToggle(b.id)}
-          onOpen={() => onOpen(b)}
           onContext={(e) => onContext(b, e)}
         />
       ))}
@@ -453,73 +482,65 @@ function Masonry({
   );
 }
 
-function BlockCard({
+function GalleryCard({
   block,
-  backlinks,
   selected,
+  onClick,
   onToggle,
-  onOpen,
   onContext,
 }: {
   block: Block;
-  backlinks: number;
   selected: boolean;
+  onClick: () => void;
   onToggle: () => void;
-  onOpen: () => void;
   onContext: (e: React.MouseEvent) => void;
 }) {
-  const Icon = KIND_ICON[block.kind];
   return (
     <div
-      onClick={onOpen}
+      onClick={onClick}
       onContextMenu={onContext}
       className={cn(
-        "group relative block w-full cursor-pointer overflow-hidden rounded-xl border bg-card transition-all hover:shadow-lg",
-        selected ? "border-accent ring-2 ring-accent/40" : "border-border",
+        "group relative aspect-square cursor-pointer overflow-hidden bg-surface-2",
+        selected && "ring-2 ring-inset ring-accent",
       )}
     >
-      {/* select checkbox */}
+      {/* select dot */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
         className={cn(
-          "absolute left-2 top-2 z-10 flex size-5 items-center justify-center rounded-full border backdrop-blur transition-opacity",
-          selected ? "border-accent bg-accent text-accent-foreground opacity-100" : "border-white/60 bg-paper/60 text-transparent opacity-0 group-hover:opacity-100",
+          "absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full border transition-opacity",
+          selected
+            ? "border-accent bg-accent text-accent-foreground opacity-100"
+            : "border-white/80 bg-black/25 text-transparent opacity-0 backdrop-blur group-hover:opacity-100",
         )}
       >
         <Check className="size-3" />
       </button>
-      {/* backlink badge */}
-      {backlinks > 1 && (
-        <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-paper/80 px-1.5 py-0.5 text-[10px] text-ink-soft backdrop-blur">
-          <FolderInput className="size-2.5" /> {backlinks}
-        </span>
-      )}
 
       {block.kind === "note" ? (
-        <div className="flex min-h-[140px] items-center bg-accent-soft/30 p-4">
-          <p className="text-sm leading-relaxed text-ink-soft">{block.note}</p>
+        <div className="flex size-full items-center bg-accent-soft/40 p-3">
+          <p className="line-clamp-6 text-xs leading-relaxed text-ink-soft">{block.note}</p>
         </div>
       ) : block.kind === "file" ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-10 text-ink-faint">
-          <FileText className="size-8" />
-          <span className="px-3 text-center text-xs">{block.title}</span>
+        <div className="flex size-full flex-col items-center justify-center gap-1.5 p-3 text-ink-faint">
+          <FileText className="size-7" />
+          <span className="line-clamp-2 text-center text-[10px]">{block.title}</span>
         </div>
       ) : (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={block.src} alt="" style={{ aspectRatio: `1 / ${block.ratio}` }} className="w-full object-cover" />
+          <img src={block.src} alt="" className="size-full object-cover" />
           {block.kind === "video" && (
-            <span className="absolute inset-0 flex items-center justify-center">
-              <span className="flex size-11 items-center justify-center rounded-full bg-paper/70 backdrop-blur">
-                <Play className="size-5" />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="flex size-9 items-center justify-center rounded-full bg-paper/70 backdrop-blur">
+                <Play className="size-4" />
               </span>
             </span>
           )}
-          {(block.kind === "link" || block.kind === "video") && block.title && (
-            <div className="flex items-center gap-1.5 border-t bg-card p-2.5">
-              <Icon className="size-3.5 shrink-0 text-ink-faint" />
-              <p className="truncate text-xs">{block.title}</p>
-            </div>
+          {block.kind === "link" && (
+            <span className="absolute bottom-1.5 left-1.5 flex size-5 items-center justify-center rounded bg-paper/80 text-ink-soft backdrop-blur">
+              <LinkIcon className="size-3" />
+            </span>
           )}
         </>
       )}
@@ -619,20 +640,20 @@ function BoardDetail(props: {
         </div>
       )}
 
-      {/* sub-folders */}
+      {/* sub-folders — same folder glyph as the free view, for consistency */}
       {subs.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="flex flex-wrap gap-2">
           {subs.map((s) => (
             <button
               key={s.id}
               onClick={() => props.onOpenBoard(s.id)}
               onContextMenu={(e) => props.onBoardContext(s, e)}
-              className="group flex items-center gap-2 rounded-xl border bg-card p-3 text-left transition-colors hover:border-ink-faint/40 cursor-pointer"
+              className="group flex w-32 flex-col items-center gap-1.5 rounded-xl p-2 transition-colors hover:bg-elevated/40 cursor-pointer"
             >
-              <FolderInput className="size-4 text-accent-ink" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{s.name}</p>
-                <p className="text-xs text-ink-faint">{boardCount(boards, s)} items</p>
+              <FolderGlyph className="w-24 transition-transform duration-150 group-hover:-translate-y-0.5" />
+              <div className="flex items-baseline gap-1.5">
+                <span className="truncate text-sm font-medium">{s.name}</span>
+                <span className="text-xs text-ink-faint">{boardCount(boards, s)}</span>
               </div>
             </button>
           ))}
@@ -646,10 +667,10 @@ function BoardDetail(props: {
           <p className="text-sm">This board is empty — add references with the Add button.</p>
         </div>
       ) : (
-        <Masonry
+        <Gallery
           blocks={boardBlocks}
-          boards={boards}
           selected={selected}
+          selectionActive={selected.size > 0}
           onToggle={props.onToggle}
           onOpen={props.onOpenBlock}
           onContext={props.onBlockContext}
@@ -662,12 +683,16 @@ function BoardDetail(props: {
 // ── Imports ──────────────────────────────────────────────────
 function ImportsView({
   imports,
+  boards,
   onSort,
   onConnections,
+  onMove,
 }: {
   imports: typeof MOOD_IMPORTS;
+  boards: Board[];
   onSort: () => void;
   onConnections: () => void;
+  onMove: (importId: string, boardId: string) => void;
 }) {
   if (imports.length === 0) {
     return (
@@ -682,18 +707,32 @@ function ImportsView({
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-xl border bg-surface-2/40 p-3">
         <p className="text-sm text-ink-soft">
-          <span className="font-medium text-foreground">{imports.length} new references</span> pulled from your connected sources, waiting to be filed.
+          <span className="font-medium text-foreground">{imports.length} new references</span> waiting to be filed — sort them with AI, or file each one by hand.
         </p>
         <Button size="sm" onClick={onSort}><Wand2 className="size-4" /> Sort with AI</Button>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {imports.map((im) => (
-          <div key={im.id} className="overflow-hidden rounded-xl border">
+          <div key={im.id} className="group overflow-hidden rounded-xl border">
             <div className="relative aspect-square">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={im.src} alt="" className="size-full object-cover" />
               <Badge variant="default" className="absolute left-2 top-2 bg-paper/80 backdrop-blur">{im.source}</Badge>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex w-full items-center justify-center gap-1.5 py-2 text-xs text-accent-ink transition-colors hover:bg-elevated cursor-pointer">
+                  <FolderInput className="size-3.5" /> Move to board
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {boards.map((b) => (
+                  <DropdownMenuItem key={b.id} onClick={() => onMove(im.id, b.id)}>
+                    <FolderInput className="size-4" /> {b.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ))}
       </div>

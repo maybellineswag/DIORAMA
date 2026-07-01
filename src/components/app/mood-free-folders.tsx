@@ -34,7 +34,7 @@ function defaultPos(cats: string[], scatter: boolean): Pos {
   return o;
 }
 
-function FolderGlyph({ className }: { className?: string }) {
+export function FolderGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 82" className={className} fill="none" aria-hidden>
       <path
