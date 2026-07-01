@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 export const isImage = (ft: string) =>
   ["JPG", "JPEG", "PNG", "SVG", "WEBP", "GIF"].includes(ft.toUpperCase());
 export const isPdf = (ft: string) => ft.toUpperCase() === "PDF";
+/** PDF plus Illustrator (which is PDF-compatible and served as application/pdf). */
+export const isEmbeddablePdf = (ft: string) => ["PDF", "AI"].includes(ft.toUpperCase());
 export const isDoc = (ft: string) =>
   ["PDF", "INDD", "DOC", "AI", "PSD", "EPS"].includes(ft.toUpperCase());
 export const is3D = (a?: Asset) => a?.category === "Hardware";

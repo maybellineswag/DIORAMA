@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Thumb } from "@/components/thumb";
 import { ThreeViewer } from "@/components/three-viewer";
-import { isDoc, is3D, isImage, isPdf } from "@/components/app/asset-tile";
+import { isDoc, is3D, isImage, isEmbeddablePdf } from "@/components/app/asset-tile";
 import type { Asset } from "@/lib/mock/types";
 import type { Piece } from "@/lib/mock/library";
 
@@ -88,7 +88,7 @@ export function AssetQuickLook({
         Live 3D · drag to rotate · scroll to zoom
       </div>
     </>
-  ) : asset?.src && isPdf(fileType) ? (
+  ) : asset?.src && isEmbeddablePdf(fileType) ? (
     <iframe src={`${asset.src}#toolbar=0`} title={name} className="size-full" />
   ) : asset && !isDoc(asset.fileType) ? (
     <Thumb seed={asset.seed} />

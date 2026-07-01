@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: "/dashboard", destination: "/home", permanent: false }];
   },
+  // Illustrator files are PDF-compatible internally — serve them as PDF so
+  // the browser's viewer can preview them inline.
+  async headers() {
+    return [
+      {
+        source: "/file-assets/:file*.ai",
+        headers: [{ key: "Content-Type", value: "application/pdf" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

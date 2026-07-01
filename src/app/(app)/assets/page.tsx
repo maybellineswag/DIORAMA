@@ -17,6 +17,7 @@ import {
   Copy,
   Info,
   Eye,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,11 +45,14 @@ import {
 import { GUIDES } from "@/lib/mock/data";
 import {
   PIECES,
+  SLOTS,
   LIBRARY_ASSETS,
   LIBRARY_CATEGORIES,
   piecesUsing,
   type Piece,
+  type SlotKey,
 } from "@/lib/mock/library";
+import { addPiece, piecesSnapshot, subscribePieces } from "@/lib/mock/pieces-store";
 import type { Asset, Guide } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
@@ -150,6 +154,12 @@ export default function AssetsPage() {
   const [folderDialog, setFolderDialog] = React.useState<
     { mode: "new" | "rename"; value: string; original?: string } | null
   >(null);
+  const [localAssets, setLocalAssets] = React.useState<Asset[]>([]);
+  const [newPiece, setNewPiece] = React.useState<{ name: string; collection: string } | null>(null);
+  const uploadInput = React.useRef<HTMLInputElement>(null);
+
+  const pieces = React.useSyncExternalStore(subscribePieces, piecesSnapshot, piecesSnapshot);
+  const allAssets = React.useMemo(() => [...LIBRARY_ASSETS, ...localAssets], [localAssets]);
 
   // Deep link: /assets?file=ID opens that asset's Quick Look.
   React.useEffect(() => {
@@ -189,7 +199,62 @@ export default function AssetsPage() {
   // Clear selection when the view changes.
   React.useEffect(() => setSelected(new Set()), [folder, mode, libQuery, setSelected]);
 
-  const countFor = (c: string) => LIBRARY_ASSETS.filter((a) => a.category === c).length;
+  const countFor = (c: string) => allAssets.filter((a) => a.category === c).length;
+
+  const prettySize = (b: number) =>
+    b < 1024 ? `${b} B` : b < 1_048_576 ? `${Math.round(b / 1024)} KB` : `${(b / 1_048_576).toFixed(1)} MB`;
+
+  const handleUpload = (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    const target = folder ?? "Uploads";
+    if (!cats.includes(target)) setCats((cs) => [...cs, target]);
+    Array.from(list).forEach((file) => {
+      const id = `up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const ext = (file.name.split(".").pop() ?? "FILE").toUpperCase();
+      const base: Asset = {
+        id,
+        name: file.name,
+        category: target as Asset["category"],
+        fileType: ext,
+        collection: "Uploads",
+        productType: "—",
+        season: "—",
+        size: prettySize(file.size),
+        updated: new Date().toISOString().slice(0, 10),
+        seed: id,
+      };
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = () =>
+          setLocalAssets((la) => [...la, { ...base, src: reader.result as string }]);
+        reader.readAsDataURL(file);
+      } else {
+        setLocalAssets((la) => [...la, base]);
+      }
+    });
+    setMode("library");
+    if (!folder) setFolder(target);
+    toast.success(list.length === 1 ? "File uploaded" : `${list.length} files uploaded`);
+  };
+
+  const createPiece = () => {
+    if (!newPiece || !newPiece.name.trim()) return;
+    const id = `pc-${Date.now().toString(36)}`;
+    const emptySlots = SLOTS.reduce(
+      (o, s) => ({ ...o, [s]: [] as string[] }),
+      {} as Record<SlotKey, string[]>,
+    );
+    addPiece({
+      id,
+      name: newPiece.name.trim(),
+      seed: id,
+      collection: newPiece.collection.trim() || "Unassigned",
+      drop: "—",
+      slots: emptySlots,
+    });
+    setNewPiece(null);
+    router.push(`/assets/${id}`);
+  };
 
   const submitFolder = () => {
     if (!folderDialog) return;
@@ -237,18 +302,18 @@ export default function AssetsPage() {
   ];
 
   // Group pieces by collection for the Pieces view.
-  const byCollection = PIECES.reduce<Record<string, Piece[]>>((acc, p) => {
+  const byCollection = pieces.reduce<Record<string, Piece[]>>((acc, p) => {
     (acc[p.collection] ??= []).push(p);
     return acc;
   }, {});
 
   const searching = libQuery.trim().length > 0;
   const searchResults = searching
-    ? LIBRARY_ASSETS.filter((a) =>
+    ? allAssets.filter((a) =>
         (a.name + a.fileType + a.category).toLowerCase().includes(libQuery.toLowerCase()),
       )
     : [];
-  const folderItems = folder ? LIBRARY_ASSETS.filter((a) => a.category === folder) : [];
+  const folderItems = folder ? allAssets.filter((a) => a.category === folder) : [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
@@ -266,9 +331,28 @@ export default function AssetsPage() {
                 { id: "guides", label: "Guides", icon: BookOpen },
               ]}
             />
-            <Button size="sm"><Upload className="size-4" /> Upload</Button>
+            {mode === "pieces" ? (
+              <Button size="sm" onClick={() => setNewPiece({ name: "", collection: "" })}>
+                <Plus className="size-4" /> New piece
+              </Button>
+            ) : mode === "library" ? (
+              <Button size="sm" onClick={() => uploadInput.current?.click()}>
+                <Upload className="size-4" /> Upload
+              </Button>
+            ) : null}
           </div>
         }
+      />
+
+      <input
+        ref={uploadInput}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          handleUpload(e.target.files);
+          e.target.value = "";
+        }}
       />
 
       {/* Finder-style path bar (library only) */}
@@ -439,6 +523,51 @@ export default function AssetsPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setFolderDialog(null)}>Cancel</Button>
             <Button onClick={submitFolder}>{folderDialog?.mode === "rename" ? "Rename" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New piece dialog */}
+      <Dialog open={!!newPiece} onOpenChange={(v) => !v && setNewPiece(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New piece</DialogTitle>
+            <DialogDescription>
+              Creates a garment with the six standard slots scaffolded and empty.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="piece-name">Name</Label>
+              <Input
+                id="piece-name"
+                value={newPiece?.name ?? ""}
+                onChange={(e) => setNewPiece((p) => (p ? { ...p, name: e.target.value } : p))}
+                onKeyDown={(e) => e.key === "Enter" && createPiece()}
+                placeholder="e.g. Reliquary Overshirt"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="piece-collection">Collection</Label>
+              <Input
+                id="piece-collection"
+                list="collections"
+                value={newPiece?.collection ?? ""}
+                onChange={(e) => setNewPiece((p) => (p ? { ...p, collection: e.target.value } : p))}
+                onKeyDown={(e) => e.key === "Enter" && createPiece()}
+                placeholder="e.g. AW25 — Reliquary"
+              />
+              <datalist id="collections">
+                {Object.keys(byCollection).map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNewPiece(null)}>Cancel</Button>
+            <Button onClick={createPiece} disabled={!newPiece?.name.trim()}>Create piece</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

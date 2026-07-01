@@ -44,6 +44,7 @@ import {
   piecesUsing,
   type SlotKey,
 } from "@/lib/mock/library";
+import { getPiece } from "@/lib/mock/pieces-store";
 import { cn } from "@/lib/utils";
 
 type Upload = { id: string; name: string; fileType: string; size: string; dataUrl?: string };
@@ -163,7 +164,7 @@ export default function PiecePage() {
   const params = useParams<{ piece: string }>();
   const router = useRouter();
   const { openMenu, contextMenu } = useContextMenu();
-  const base = PIECES.find((p) => p.id === params.piece);
+  const base = getPiece(params.piece);
 
   const [slots, setSlots] = React.useState<Record<SlotKey, string[]> | null>(
     base ? base.slots : null,
