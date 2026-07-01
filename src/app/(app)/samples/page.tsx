@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowDown,
   Search,
+  ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,7 +30,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -48,7 +51,6 @@ import {
   PRODUCTS,
   TRACKS,
   STATUS_TONE,
-  ALL_STATUSES,
   COLLECTIONS,
   PRODUCT_TYPES,
   manufacturer,
@@ -412,10 +414,18 @@ function AddProductDialog({
     drop: "",
     priority: "Medium" as Priority,
     status: "Concept" as SampleStatus,
+    image: "",
   };
   const [form, setForm] = React.useState(empty);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const onFile = (file?: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => set("image", String(reader.result));
+    reader.readAsDataURL(file);
+  };
 
   const create = () => {
     if (!form.name.trim()) {
@@ -433,6 +443,7 @@ function AddProductDialog({
       manufacturerId: null,
       status: form.status,
       seed: slug(form.name).slice(2),
+      image: form.image || undefined,
       moq: 0,
       pricePerUnit: 0,
       bulkPrice: 0,
@@ -478,7 +489,13 @@ function AddProductDialog({
               <Select value={form.priority} onValueChange={(v) => set("priority", v as Priority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  {PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <span className="flex items-center gap-2">
+                        <PriorityDot priority={p} /> {p}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -496,7 +513,14 @@ function AddProductDialog({
               <Select value={form.status} onValueChange={(v) => set("status", v as SampleStatus)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {TRACKS.map((track) => (
+                    <SelectGroup key={track.track}>
+                      <SelectLabel>{track.track}</SelectLabel>
+                      {track.statuses.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -508,6 +532,39 @@ function AddProductDialog({
               onChange={(e) => set("drop", e.target.value)}
               placeholder="e.g. Drop 01 · Oct 2026"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Photo</Label>
+            {form.image ? (
+              <div className="flex items-center gap-3">
+                <span className="size-16 shrink-0 overflow-hidden rounded-lg border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.image} alt="" className="h-full w-full object-cover" />
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => set("image", "")}>
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <label
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  onFile(e.dataTransfer.files?.[0]);
+                }}
+                className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed py-6 text-sm text-ink-faint transition-colors hover:border-ink-faint/50 hover:text-ink-soft"
+              >
+                <ImagePlus className="size-5" />
+                <span>Drop or click to upload a photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => onFile(e.target.files?.[0])}
+                />
+              </label>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -535,6 +592,12 @@ export default function SamplesPage() {
 
   const visibleTracks =
     filter === "All" ? TRACKS : TRACKS.filter((t) => t.track === filter);
+
+  const isFiltering =
+    query.trim() !== "" ||
+    fCollection !== "all" ||
+    fType !== "all" ||
+    fPriority !== "all";
 
   const filtered = products
     .filter(
@@ -695,14 +758,20 @@ export default function SamplesPage() {
       {view === "board" && (
         <div className="min-h-0 flex-1 overflow-x-auto px-6 pb-6 lg:px-8">
           <div className="flex h-full gap-6">
-            {visibleTracks.map((track) => (
+            {visibleTracks.map((track) => {
+              // When filtering/searching, collapse empty columns and empty tracks.
+              const statuses = isFiltering
+                ? track.statuses.filter((s) => filtered.some((p) => p.status === s))
+                : track.statuses;
+              if (isFiltering && statuses.length === 0) return null;
+              return (
               <div key={track.track} className="flex h-full flex-col">
                 <div className="mb-3 flex items-center gap-2">
                   <span className={cn("size-2 rounded-full", TRACK_ACCENT[track.track])} />
                   <h2 className="text-sm font-medium">{track.track}</h2>
                 </div>
                 <div className="flex h-full gap-3">
-                  {track.statuses.map((status) => {
+                  {statuses.map((status) => {
                     const cards = filtered.filter((p) => p.status === status);
                     return (
                       <div
@@ -751,7 +820,8 @@ export default function SamplesPage() {
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
