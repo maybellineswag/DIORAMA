@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Board } from "@/lib/mock/moodboard";
 
-const STEPS = ["How it works", "Board rules"];
+const STEPS = ["How it works", "Folder rules"];
 
 /**
  * One-time onboarding for AI Sort. Runs the first time a brand opens the
@@ -69,14 +69,14 @@ export function MoodAiSortOnboarding({
             <div className="space-y-4">
               <p className="text-sm leading-relaxed text-ink-soft">
                 Drop in a folder of references — even a few hundred at once — and AI Sort files each
-                one into the right board. It learns from a short rule you write per board, then works
+                one into the right folder. It learns from a short rule you write per folder, then works
                 on <span className="font-medium text-foreground">automatic</span>,{" "}
                 <span className="font-medium text-foreground">semi-automatic</span>, or{" "}
                 <span className="font-medium text-foreground">manual</span> — your call, in batches.
               </p>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { t: "Write rules", d: "One line per board describing what belongs." },
+                  { t: "Write rules", d: "One line per folder describing what belongs." },
                   { t: "Drop images", d: "Ingest hundreds at once, in batches." },
                   { t: "Auto or review", d: "Let it file, or approve batch by batch." },
                 ].map((c, i) => (
@@ -90,7 +90,7 @@ export function MoodAiSortOnboarding({
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-ink-soft">What belongs in each board? Saved and reused every time you sort.</p>
+              <p className="text-sm text-ink-soft">What belongs in each folder? Saved and reused every time you sort.</p>
               {boards.map((b) => (
                 <div key={b.id} className="space-y-1.5">
                   <label className="text-sm font-medium">{b.name}</label>

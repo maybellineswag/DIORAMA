@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Sparkles,
   Wand2,
@@ -89,6 +90,7 @@ export default function MoodboardPage() {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = React.useState(false);
 
   const [imports, setImports] = React.useState(MOOD_IMPORTS);
   const [connections, setConnections] = React.useState<Connection[]>(CONNECTIONS);
@@ -97,6 +99,8 @@ export default function MoodboardPage() {
   const [connOpen, setConnOpen] = React.useState(false);
   const [onboardOpen, setOnboardOpen] = React.useState(false);
   const [sorterOpen, setSorterOpen] = React.useState(false);
+  const [sorterSeed, setSorterSeed] = React.useState<{ id: string; src: string }[] | null>(null);
+  const [sortingImports, setSortingImports] = React.useState(false);
   const [infoBoard, setInfoBoard] = React.useState<Board | null>(null);
   const [shareBoard, setShareBoard] = React.useState<Board | null>(null);
   const [bookBoard, setBookBoard] = React.useState<Board | null>(null);
@@ -112,7 +116,7 @@ export default function MoodboardPage() {
   const bById = (id: string) => blocks.find((b) => b.id === id);
   const openBoard = openId ? boards.find((b) => b.id === openId) ?? null : null;
 
-  React.useEffect(() => setSelected(new Set()), [openId, view]);
+  React.useEffect(() => { setSelected(new Set()); setSelectMode(false); }, [openId, view]);
 
   // ── mutations ──
   const addBoard = (name: string, parentId: string | null) => {
@@ -138,7 +142,7 @@ export default function MoodboardPage() {
   const deleteBoard = (id: string) => {
     setBoards((bs) => bs.filter((b) => b.id !== id && b.parentId !== id));
     if (openId === id) setOpenId(null);
-    toast.success("Board moved to Trash");
+    toast.success("Folder moved to Trash");
   };
   const setVisibility = (id: string, v: Board["visibility"]) =>
     setBoards((bs) => bs.map((b) => (b.id === id ? { ...b, visibility: v } : b)));
@@ -168,12 +172,12 @@ export default function MoodboardPage() {
     if (!name) return;
     if (boardDialog.mode === "new") {
       const id = addBoard(name, boardDialog.parentId);
-      toast.success(`Created board “${name}”`);
+      toast.success(`Created folder “${name}”`);
       if (boardDialog.parentId) setOpenId((o) => o); // stay
       else setOpenId(id);
     } else if (boardDialog.id) {
       renameBoard(boardDialog.id, name);
-      toast.success("Board renamed");
+      toast.success("Folder renamed");
     }
     setBoardDialog(null);
   };
@@ -197,10 +201,20 @@ export default function MoodboardPage() {
   };
 
   // AI Sort: onboard once (rules), then the sorter handles ingest/modes/batches.
-  const launchAiSort = () => {
+  const openSorter = () => {
     const onboarded = typeof window !== "undefined" && localStorage.getItem("diorama.mood.aiOnboarded");
     if (onboarded) setSorterOpen(true);
     else setOnboardOpen(true);
+  };
+  const launchAiSort = () => {
+    setSorterSeed(null);
+    setSortingImports(false);
+    openSorter();
+  };
+  const sortImports = () => {
+    setSorterSeed(imports.map((im) => ({ id: im.id, src: im.src })));
+    setSortingImports(true);
+    openSorter();
   };
   const completeOnboarding = (rules: Record<string, string>) => {
     setBoards((bs) => bs.map((b) => (rules[b.id] !== undefined ? { ...b, rule: rules[b.id] } : b)));
@@ -212,6 +226,7 @@ export default function MoodboardPage() {
     items.forEach((it) =>
       createBlockInBoard(it.boardId, { kind: "image", src: it.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] }),
     );
+    if (sortingImports) setImports([]);
   };
 
   // Manual import filing.
@@ -220,7 +235,7 @@ export default function MoodboardPage() {
     if (!im) return;
     createBlockInBoard(boardId, { kind: "image", src: im.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] });
     setImports((xs) => xs.filter((x) => x.id !== importId));
-    toast.success("Moved to board");
+    toast.success("Moved to folder");
   };
 
   // ── derived ──
@@ -248,7 +263,7 @@ export default function MoodboardPage() {
   ];
   const blockMenu = (b: Block): CtxItem[] => [
     { label: b.kind === "link" || b.kind === "video" ? "Open link" : "Open", icon: ExternalLink, onClick: () => (b.url ? window.open(b.url, "_blank") : setPreview(b)) },
-    { label: "Add to board…", icon: FolderInput, onClick: () => setConnectBlock(b) },
+    { label: "Add to folder…", icon: FolderInput, onClick: () => setConnectBlock(b) },
     { label: "Download", icon: Download, onClick: () => toast.success("Download is simulated in this prototype.") },
     ...(openBoard
       ? ([{ type: "sep" }, { label: "Remove from board", icon: Trash2, destructive: true, onClick: () => removeFromBoard(openBoard.id, b.id) }] as CtxItem[])
@@ -267,15 +282,15 @@ export default function MoodboardPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader
         title={
-          <span className="flex items-center gap-2.5">
+          <span className="flex items-end gap-2.5 leading-none">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/olivine-logo.svg"
               alt="Olivine"
-              className="h-6 w-auto select-none dark:[filter:invert(0.92)_sepia(0.08)_saturate(0.6)_brightness(1.05)]"
+              className="h-6 w-auto translate-y-[2px] select-none dark:[filter:invert(0.92)_sepia(0.08)_saturate(0.6)_brightness(1.05)]"
               draggable={false}
             />
-            <span className="text-ink-faint">Moodboard</span>
+            <span>Moodboard</span>
           </span>
         }
         description="Collect references into boards — images, video, links, notes — and let AI keep them filed."
@@ -297,7 +312,7 @@ export default function MoodboardPage() {
               </span>
             )}
             <Button variant="secondary" size="sm" onClick={() => setConnOpen(true)}>
-              <Link2 className="size-4" /> Connections
+              <Link2 className="size-4" /> Sources
             </Button>
             <Button size="sm" onClick={launchAiSort}>
               <Wand2 className="size-4" /> AI Sort
@@ -306,6 +321,17 @@ export default function MoodboardPage() {
         }
       />
 
+      {sorterOpen ? (
+        <MoodSorter
+          boards={roots}
+          sampleImages={MOODBOARD_PHOTOS}
+          initialQueue={sorterSeed ?? undefined}
+          onClose={() => { setSorterOpen(false); setSorterSeed(null); setSortingImports(false); }}
+          onFile={fileFromSorter}
+          onEditRules={() => { setSorterOpen(false); setOnboardOpen(true); }}
+        />
+      ) : (
+      <>
       {/* Search */}
       <div className="relative">
         <Sparkles className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent-ink" />
@@ -323,7 +349,7 @@ export default function MoodboardPage() {
           <Gallery
             blocks={searchResults}
             selected={selected}
-            selectionActive={selected.size > 0}
+            selectMode={false}
             onToggle={toggleSel}
             onOpen={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
             onContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -335,8 +361,10 @@ export default function MoodboardPage() {
           boards={boards}
           bById={bById}
           selected={selected}
+          selectMode={selectMode}
+          onToggleSelectMode={() => { setSelectMode((m) => !m); setSelected(new Set()); }}
           onToggle={toggleSel}
-          onClearSel={() => setSelected(new Set())}
+          onClearSel={() => { setSelected(new Set()); setSelectMode(false); }}
           onOpenBoard={setOpenId}
           onOpenBlock={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
           onBlockContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -354,7 +382,7 @@ export default function MoodboardPage() {
         <ImportsView
           imports={imports}
           boards={roots}
-          onSort={launchAiSort}
+          onSort={sortImports}
           onConnections={() => setConnOpen(true)}
           onMove={moveImport}
         />
@@ -363,7 +391,7 @@ export default function MoodboardPage() {
         <div
           onContextMenu={(e) =>
             openMenu(e, [
-              { label: "New board", icon: FolderPlus, onClick: () => setBoardDialog({ mode: "new", value: "", parentId: null }) },
+              { label: "New folder", icon: FolderPlus, onClick: () => setBoardDialog({ mode: "new", value: "", parentId: null }) },
             ])
           }
         >
@@ -380,38 +408,31 @@ export default function MoodboardPage() {
               if (b) openMenu(e, boardMenu(b));
             }}
             storageKey="diorama.mood.boards.v1"
-            addLabel="New board"
+            addLabel="New folder"
             scatter
             toolbar
           />
         </div>
       )}
+      </>
+      )}
 
       {/* ── dialogs ── */}
       <MoodConnections open={connOpen} onOpenChange={setConnOpen} connections={connections} setConnections={setConnections} />
       <MoodAiSortOnboarding open={onboardOpen} onOpenChange={setOnboardOpen} boards={roots} onComplete={completeOnboarding} />
-      {sorterOpen && (
-        <MoodSorter
-          boards={roots}
-          sampleImages={MOODBOARD_PHOTOS}
-          onClose={() => setSorterOpen(false)}
-          onFile={fileFromSorter}
-          onEditRules={() => { setSorterOpen(false); setOnboardOpen(true); }}
-        />
-      )}
 
       <InfoDialog board={infoBoard} boards={boards} onClose={() => setInfoBoard(null)} />
       <ShareDialog board={shareBoard} onClose={() => setShareBoard(null)} onVisibility={(v) => shareBoard && setVisibility(shareBoard.id, v)} />
       <BookDialog board={bookBoard} bById={bById} onClose={() => setBookBoard(null)} />
-      <BlockPreview block={preview} boards={boards} onClose={() => setPreview(null)} onConnect={(b) => { setPreview(null); setConnectBlock(b); }} />
-      <ConnectDialog block={connectBlock} boards={boards} onClose={() => setConnectBlock(null)} onAdd={(boardId) => { if (connectBlock) { addToBoard(boardId, connectBlock.id); toast.success("Added to board"); } setConnectBlock(null); }} />
+      <BlockPreview block={preview} boards={boards} onClose={() => setPreview(null)} onConnect={(b) => { setPreview(null); setConnectBlock(b); }} onOpenBoard={(id) => { setPreview(null); setOpenId(id); }} />
+      <ConnectDialog block={connectBlock} boards={boards} onClose={() => setConnectBlock(null)} onAdd={(boardId) => { if (connectBlock) { addToBoard(boardId, connectBlock.id); toast.success("Added to folder"); } setConnectBlock(null); }} />
 
       {/* New / rename board */}
       <Dialog open={!!boardDialog} onOpenChange={(v) => !v && setBoardDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{boardDialog?.mode === "rename" ? "Rename board" : boardDialog?.parentId ? "New sub-board" : "New board"}</DialogTitle>
-            <DialogDescription>{boardDialog?.mode === "rename" ? "Give this board a new name." : "Boards hold images, video, links, files, and notes."}</DialogDescription>
+            <DialogTitle>{boardDialog?.mode === "rename" ? "Rename folder" : boardDialog?.parentId ? "New sub-folder" : "New folder"}</DialogTitle>
+            <DialogDescription>{boardDialog?.mode === "rename" ? "Give this folder a new name." : "Folders hold images, video, links, files, and notes."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="board-name">Name</Label>
@@ -454,26 +475,27 @@ export default function MoodboardPage() {
 function Gallery({
   blocks,
   selected,
-  selectionActive,
+  selectMode,
   onToggle,
   onOpen,
   onContext,
 }: {
   blocks: Block[];
   selected: Set<string>;
-  selectionActive: boolean;
+  selectMode: boolean;
   onToggle: (id: string) => void;
   onOpen: (b: Block) => void;
   onContext: (b: Block, e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-5">
       {blocks.map((b) => (
         <GalleryCard
           key={b.id}
           block={b}
           selected={selected.has(b.id)}
-          onClick={() => (selectionActive ? onToggle(b.id) : onOpen(b))}
+          selectMode={selectMode}
+          onClick={() => (selectMode ? onToggle(b.id) : onOpen(b))}
           onToggle={() => onToggle(b.id)}
           onContext={(e) => onContext(b, e)}
         />
@@ -485,12 +507,14 @@ function Gallery({
 function GalleryCard({
   block,
   selected,
+  selectMode,
   onClick,
   onToggle,
   onContext,
 }: {
   block: Block;
   selected: boolean;
+  selectMode: boolean;
   onClick: () => void;
   onToggle: () => void;
   onContext: (e: React.MouseEvent) => void;
@@ -504,18 +528,17 @@ function GalleryCard({
         selected && "ring-2 ring-inset ring-accent",
       )}
     >
-      {/* select dot */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className={cn(
-          "absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full border transition-opacity",
-          selected
-            ? "border-accent bg-accent text-accent-foreground opacity-100"
-            : "border-white/80 bg-black/25 text-transparent opacity-0 backdrop-blur group-hover:opacity-100",
-        )}
-      >
-        <Check className="size-3" />
-      </button>
+      {/* select dot — only in select mode */}
+      {selectMode && (
+        <span
+          className={cn(
+            "absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full border",
+            selected ? "border-accent bg-accent text-accent-foreground" : "border-white/80 bg-black/25 text-transparent backdrop-blur",
+          )}
+        >
+          <Check className="size-3" />
+        </span>
+      )}
 
       {block.kind === "note" ? (
         <div className="flex size-full items-center bg-accent-soft/40 p-3">
@@ -554,6 +577,8 @@ function BoardDetail(props: {
   boards: Board[];
   bById: (id: string) => Block | undefined;
   selected: Set<string>;
+  selectMode: boolean;
+  onToggleSelectMode: () => void;
   onToggle: (id: string) => void;
   onClearSel: () => void;
   onOpenBoard: (id: string | null) => void;
@@ -569,11 +594,12 @@ function BoardDetail(props: {
   onAddNote: () => void;
   onUpload: () => void;
 }) {
-  const { board, boards, bById, selected } = props;
+  const { board, boards, bById, selected, selectMode } = props;
   const path = boardPath(boards, board.id);
   const subs = childBoards(boards, board.id);
   const boardBlocks = board.blockIds.map(bById).filter(Boolean) as Block[];
   const selCount = boardBlocks.filter((b) => selected.has(b.id)).length;
+  const empty = boardBlocks.length === 0 && subs.length === 0;
 
   return (
     <div className="space-y-5">
@@ -606,7 +632,7 @@ function BoardDetail(props: {
             {board.linkedCollection && (
               <>
                 <span>·</span>
-                <span className="text-accent-ink">{board.linkedCollection}</span>
+                <Link href="/collections" className="text-accent-ink hover:underline">{board.linkedCollection}</Link>
               </>
             )}
           </div>
@@ -624,6 +650,9 @@ function BoardDetail(props: {
               <DropdownMenuItem onClick={props.onNewSub}><FolderPlus className="size-4" /> New sub-folder</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant={selectMode ? "default" : "secondary"} size="sm" onClick={props.onToggleSelectMode}>
+            <Check className="size-4" /> {selectMode ? "Done" : "Select"}
+          </Button>
           <Button variant="secondary" size="icon-sm" onClick={props.onInfo} title="Info"><Info className="size-4" /></Button>
           <Button variant="secondary" size="icon-sm" onClick={props.onShare} title="Share"><Share2 className="size-4" /></Button>
           <Button variant="secondary" size="icon-sm" onClick={props.onRename} title="Rename"><Pencil className="size-4" /></Button>
@@ -640,41 +669,38 @@ function BoardDetail(props: {
         </div>
       )}
 
-      {/* sub-folders — same folder glyph as the free view, for consistency */}
-      {subs.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+      {/* folders + blocks in one grid — folders behave like any other tile */}
+      {empty ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
+          <ImagePlus className="size-6" />
+          <p className="text-sm">This folder is empty — add references with the Add button.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-5">
           {subs.map((s) => (
             <button
               key={s.id}
               onClick={() => props.onOpenBoard(s.id)}
               onContextMenu={(e) => props.onBoardContext(s, e)}
-              className="group flex w-32 flex-col items-center gap-1.5 rounded-xl p-2 transition-colors hover:bg-elevated/40 cursor-pointer"
+              className="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 bg-surface-2/40 p-2 transition-colors hover:bg-elevated/50"
             >
-              <FolderGlyph className="w-24 transition-transform duration-150 group-hover:-translate-y-0.5" />
-              <div className="flex items-baseline gap-1.5">
-                <span className="truncate text-sm font-medium">{s.name}</span>
-                <span className="text-xs text-ink-faint">{boardCount(boards, s)}</span>
-              </div>
+              <FolderGlyph className="w-16 transition-transform duration-150 group-hover:-translate-y-0.5" />
+              <span className="line-clamp-1 max-w-full px-1 text-xs font-medium">{s.name}</span>
+              <span className="text-[10px] text-ink-faint">{boardCount(boards, s)} items</span>
             </button>
           ))}
+          {boardBlocks.map((b) => (
+            <GalleryCard
+              key={b.id}
+              block={b}
+              selected={selected.has(b.id)}
+              selectMode={selectMode}
+              onClick={() => (selectMode ? props.onToggle(b.id) : props.onOpenBlock(b))}
+              onToggle={() => props.onToggle(b.id)}
+              onContext={(e) => props.onBlockContext(b, e)}
+            />
+          ))}
         </div>
-      )}
-
-      {/* blocks */}
-      {boardBlocks.length === 0 && subs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
-          <ImagePlus className="size-6" />
-          <p className="text-sm">This board is empty — add references with the Add button.</p>
-        </div>
-      ) : (
-        <Gallery
-          blocks={boardBlocks}
-          selected={selected}
-          selectionActive={selected.size > 0}
-          onToggle={props.onToggle}
-          onOpen={props.onOpenBlock}
-          onContext={props.onBlockContext}
-        />
       )}
     </div>
   );
@@ -699,7 +725,7 @@ function ImportsView({
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-20 text-center">
         <Inbox className="size-7 text-ink-faint" />
         <p className="text-sm text-ink-soft">Inbox is empty — everything's filed.</p>
-        <Button variant="secondary" size="sm" onClick={onConnections}><Link2 className="size-4" /> Manage connections</Button>
+        <Button variant="secondary" size="sm" onClick={onConnections}><Link2 className="size-4" /> Manage sources</Button>
       </div>
     );
   }
@@ -722,7 +748,7 @@ function ImportsView({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex w-full items-center justify-center gap-1.5 py-2 text-xs text-accent-ink transition-colors hover:bg-elevated cursor-pointer">
-                  <FolderInput className="size-3.5" /> Move to board
+                  <FolderInput className="size-3.5" /> Move to folder
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -747,7 +773,7 @@ function InfoDialog({ board, boards, onClose }: { board: Board | null; boards: B
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{board?.name}</DialogTitle>
-          <DialogDescription>Board info</DialogDescription>
+          <DialogDescription>Folder info</DialogDescription>
         </DialogHeader>
         {board && (
           <div className="space-y-3 text-sm">
@@ -882,7 +908,7 @@ function BookDialog({ board, bById, onClose }: { board: Board | null; bById: (id
 }
 
 // ── Block preview (lightbox) ─────────────────────────────────
-function BlockPreview({ block, boards, onClose, onConnect }: { block: Block | null; boards: Board[]; onClose: () => void; onConnect: (b: Block) => void }) {
+function BlockPreview({ block, boards, onClose, onConnect, onOpenBoard }: { block: Block | null; boards: Board[]; onClose: () => void; onConnect: (b: Block) => void; onOpenBoard: (id: string) => void }) {
   const links = block ? boardsContaining(boards, block.id) : [];
   return (
     <Dialog open={!!block} onOpenChange={(v) => !v && onClose()}>
@@ -906,14 +932,20 @@ function BlockPreview({ block, boards, onClose, onConnect }: { block: Block | nu
               {block.url && <a href={block.url} target="_blank" rel="noreferrer" className="mt-1 truncate text-xs text-accent-ink hover:underline">{block.url}</a>}
               <p className="mt-3 text-xs text-ink-faint">Added {block.addedAt}</p>
               <Separator className="my-4" />
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">In {links.length} board{links.length === 1 ? "" : "s"}</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">In {links.length} folder{links.length === 1 ? "" : "s"}</p>
               <div className="flex flex-wrap gap-1.5">
                 {links.map((b) => (
-                  <Badge key={b.id} variant="outline">{b.name}</Badge>
+                  <button
+                    key={b.id}
+                    onClick={() => onOpenBoard(b.id)}
+                    className="rounded-full border px-2.5 py-0.5 text-xs transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                  >
+                    {b.name}
+                  </button>
                 ))}
               </div>
               <div className="mt-auto flex gap-2 pt-5">
-                <Button variant="secondary" className="flex-1" onClick={() => onConnect(block)}><FolderInput className="size-4" /> Add to board</Button>
+                <Button variant="secondary" className="flex-1" onClick={() => onConnect(block)}><FolderInput className="size-4" /> Add to folder</Button>
                 <Button className="flex-1" onClick={() => toast.success("Download is simulated in this prototype.")}><Download className="size-4" /> Download</Button>
               </div>
             </div>
@@ -930,8 +962,8 @@ function ConnectDialog({ block, boards, onClose, onAdd }: { block: Block | null;
     <Dialog open={!!block} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add to board</DialogTitle>
-          <DialogDescription>The same reference can live in several boards.</DialogDescription>
+          <DialogTitle>Add to folder</DialogTitle>
+          <DialogDescription>The same reference can live in several folders.</DialogDescription>
         </DialogHeader>
         <div className="max-h-[50vh] space-y-1 overflow-y-auto">
           {boards.map((b) => {

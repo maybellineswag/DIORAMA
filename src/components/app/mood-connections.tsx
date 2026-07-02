@@ -59,9 +59,9 @@ export function MoodConnections({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Connections</DialogTitle>
+          <DialogTitle>Sources</DialogTitle>
           <DialogDescription>
-            Sync boards and channels straight into your moodboard.
+            Sync references from Pinterest and Are.na straight into your moodboard.
           </DialogDescription>
         </DialogHeader>
 

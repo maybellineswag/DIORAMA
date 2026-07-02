@@ -31,18 +31,20 @@ const hash = (s: string) => {
 export function MoodSorter({
   boards,
   sampleImages,
+  initialQueue,
   onClose,
   onFile,
   onEditRules,
 }: {
   boards: Board[];
   sampleImages: string[];
+  initialQueue?: QueueItem[];
   onClose: () => void;
   onFile: (items: { src: string; boardId: string }[]) => void;
   onEditRules: () => void;
 }) {
-  const [phase, setPhase] = React.useState<Phase>("drop");
-  const [queue, setQueue] = React.useState<QueueItem[]>([]);
+  const [phase, setPhase] = React.useState<Phase>(initialQueue?.length ? "config" : "drop");
+  const [queue, setQueue] = React.useState<QueueItem[]>(initialQueue ?? []);
   const [mode, setMode] = React.useState<Mode>("automatic");
   const [batch, setBatch] = React.useState(50);
   const [progress, setProgress] = React.useState(0);
@@ -126,7 +128,7 @@ export function MoodSorter({
         })
         .filter(Boolean) as { src: string; boardId: string }[],
     );
-    toast.success(`Filed ${filed.length} references into ${Object.keys(perBoard).length} boards`);
+    toast.success(`Filed ${filed.length} references into ${Object.keys(perBoard).length} folders`);
     onClose();
   };
 
@@ -134,25 +136,23 @@ export function MoodSorter({
   const batches = Math.max(1, Math.ceil(queue.length / batch));
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-paper">
-      {/* header — matches app chrome */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b px-5">
+    <div className="rounded-xl border bg-card">
+      {/* header — sits inside the page, sidebar + top bar stay visible */}
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2.5">
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Back"><X className="size-4" /></Button>
           <span className="flex size-7 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
             <Wand2 className="size-4" />
           </span>
           <div>
             <p className="text-sm font-medium leading-tight">AI Sort</p>
-            <p className="text-xs leading-tight text-ink-faint">File references into your boards</p>
+            <p className="text-xs leading-tight text-ink-faint">File references into your folders</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onEditRules}><Settings2 className="size-4" /> Sort rules</Button>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close"><X className="size-4" /></Button>
-        </div>
+        <Button variant="ghost" size="sm" onClick={onEditRules}><Settings2 className="size-4" /> Sort rules</Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div>
         <div className="mx-auto max-w-3xl p-8">
           {phase === "drop" ? (
             <>
@@ -228,7 +228,7 @@ export function MoodSorter({
           ) : phase === "processing" ? (
             <div className="flex flex-col items-center gap-4 py-24 text-center">
               <Wand2 className="size-8 text-accent-ink" />
-              <p className="text-sm">Classifying {queue.length} references into your boards…</p>
+              <p className="text-sm">Classifying {queue.length} references into your folders…</p>
               <div className="h-2 w-64 overflow-hidden rounded-full bg-surface-2">
                 <div className="h-full rounded-full bg-accent transition-all duration-150" style={{ width: `${progress}%` }} />
               </div>
