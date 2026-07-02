@@ -71,8 +71,29 @@ import {
   boardPath,
   type Board,
   type Block,
+  type BlockKind,
 } from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
+
+const strHash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+
+/** Simulated link preview: derive a title + OG-style cover from the URL. */
+function makeLinkBlock(url: string, title?: string) {
+  let host = url;
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep raw */ }
+  const t = title?.trim() || host;
+  return {
+    kind: "link" as const,
+    url,
+    title: t,
+    src: MOODBOARD_PHOTOS[strHash(url) % MOODBOARD_PHOTOS.length],
+    ratio: 0.8,
+  };
+}
 
 function Initials({ name }: { name: string }) {
   const i = name.split(" ").map((p) => p[0]).slice(0, 2).join("");
@@ -219,8 +240,8 @@ export default function MoodboardPage() {
     toast.success(`Added ${arr.length} ${arr.length === 1 ? "item" : "items"}`);
   };
   const addLinkUrl = (boardId: string, url: string) => {
-    createBlockInBoard(boardId, { kind: "link", url, title: url, ratio: 0.8 });
-    toast.success("Link added");
+    createBlockInBoard(boardId, makeLinkBlock(url));
+    toast.success("Link preview added");
   };
 
   const submitAddBlock = () => {
@@ -230,12 +251,7 @@ export default function MoodboardPage() {
       createBlockInBoard(addBlock.boardId, { kind: "note", note: addBlock.value.trim(), ratio: 0.7 });
     } else {
       if (!addBlock.value.trim()) return;
-      createBlockInBoard(addBlock.boardId, {
-        kind: "link",
-        url: addBlock.value.trim(),
-        title: addBlock.title.trim() || addBlock.value.trim(),
-        ratio: 0.8,
-      });
+      createBlockInBoard(addBlock.boardId, makeLinkBlock(addBlock.value.trim(), addBlock.title));
     }
     toast.success("Block added");
     setAddBlock(null);
@@ -289,6 +305,21 @@ export default function MoodboardPage() {
     toast.success(`Removed ${selected.size}`);
     clearSel();
   };
+  const selectAll = (ids: string[]) => { setSelectMode(true); setSelected(new Set(ids)); };
+
+  const reorderBlocks = (boardId: string, fromId: string, toId: string) =>
+    setBoards((bs) =>
+      bs.map((b) => {
+        if (b.id !== boardId) return b;
+        const ids = [...b.blockIds];
+        const from = ids.indexOf(fromId);
+        if (from === -1) return b;
+        ids.splice(from, 1);
+        const to = ids.indexOf(toId);
+        ids.splice(to === -1 ? ids.length : to, 0, fromId);
+        return { ...b, blockIds: ids };
+      }),
+    );
 
   // Manual import filing.
   const moveImport = (importId: string, boardId: string) => {
@@ -429,6 +460,8 @@ export default function MoodboardPage() {
           onBulkAdd={bulkAdd}
           onBulkMove={bulkMove}
           onBulkRemove={bulkRemove}
+          onSelectAll={selectAll}
+          onReorder={(fromId, toId) => openBoard && reorderBlocks(openBoard.id, fromId, toId)}
           onOpenBoard={setOpenId}
           onOpenBlock={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
           onBlockContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -625,7 +658,7 @@ function GalleryCard({
       ) : (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={block.src} alt="" className="size-full object-cover" />
+          <img src={block.src} alt="" draggable={false} className="size-full object-cover" />
           {block.kind === "video" && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span className="flex size-9 items-center justify-center rounded-full bg-paper/70 backdrop-blur">
@@ -657,6 +690,8 @@ function BoardDetail(props: {
   onBulkAdd: (targetId: string) => void;
   onBulkMove: (targetId: string) => void;
   onBulkRemove: () => void;
+  onSelectAll: (ids: string[]) => void;
+  onReorder: (fromId: string, toId: string) => void;
   onOpenBoard: (id: string | null) => void;
   onOpenBlock: (b: Block) => void;
   onBlockContext: (b: Block, e: React.MouseEvent) => void;
@@ -678,8 +713,13 @@ function BoardDetail(props: {
   const selCount = boardBlocks.filter((b) => selected.has(b.id)).length;
   const empty = boardBlocks.length === 0 && subs.length === 0;
 
+  const [filter, setFilter] = React.useState<"all" | BlockKind>("all");
+  const kinds = Array.from(new Set(boardBlocks.map((b) => b.kind)));
+  const shownBlocks = filter === "all" ? boardBlocks : boardBlocks.filter((b) => b.kind === filter);
+
   const fileRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
+  const dragId = React.useRef<string | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
 
   React.useEffect(() => {
@@ -720,9 +760,9 @@ function BoardDetail(props: {
   return (
     <div
       className="relative space-y-5"
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
-      onDrop={(e) => { e.preventDefault(); setDragOver(false); onIngest(e.dataTransfer.files); }}
+      onDrop={(e) => { setDragOver(false); if (e.dataTransfer.files?.length) { e.preventDefault(); onIngest(e.dataTransfer.files); } }}
     >
       <input ref={fileRef} type="file" multiple accept="image/*,video/*,application/pdf" hidden onChange={(e) => { onIngest(e.target.files); e.target.value = ""; }} />
       <input ref={folderRef} type="file" multiple hidden onChange={(e) => { onIngest(e.target.files); e.target.value = ""; }} />
@@ -788,6 +828,11 @@ function BoardDetail(props: {
               <div className="px-2 py-1.5 text-[11px] text-ink-faint">Tip: drag files in, or paste an image / link.</div>
             </DropdownMenuContent>
           </DropdownMenu>
+          {selectMode && (
+            <Button variant="ghost" size="sm" onClick={() => props.onSelectAll(shownBlocks.map((b) => b.id))}>
+              Select all
+            </Button>
+          )}
           <Button variant={selectMode ? "default" : "secondary"} size="sm" onClick={props.onToggleSelectMode}>
             <Check className="size-4" /> {selectMode ? "Done" : "Select"}
           </Button>
@@ -832,6 +877,24 @@ function BoardDetail(props: {
         </div>
       )}
 
+      {/* filter by type */}
+      {kinds.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["all", ...kinds] as const).map((k) => (
+            <button
+              key={k}
+              onClick={() => setFilter(k)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs capitalize transition-colors cursor-pointer",
+                filter === k ? "border-accent/50 bg-accent-soft text-accent-ink" : "border-border text-ink-soft hover:bg-elevated/60",
+              )}
+            >
+              {k === "all" ? "All" : `${k}s`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* folders + blocks in one grid — folders behave like any other tile */}
       {empty ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
@@ -840,7 +903,7 @@ function BoardDetail(props: {
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-5">
-          {subs.map((s) => (
+          {filter === "all" && subs.map((s) => (
             <button
               key={s.id}
               onClick={() => props.onOpenBoard(s.id)}
@@ -852,16 +915,31 @@ function BoardDetail(props: {
               <span className="text-[10px] text-ink-faint">{boardCount(boards, s)} items</span>
             </button>
           ))}
-          {boardBlocks.map((b) => (
-            <GalleryCard
+          {shownBlocks.map((b) => (
+            <div
               key={b.id}
-              block={b}
-              selected={selected.has(b.id)}
-              selectMode={selectMode}
-              onClick={() => (selectMode ? props.onToggle(b.id) : props.onOpenBlock(b))}
-              onToggle={() => props.onToggle(b.id)}
-              onContext={(e) => props.onBlockContext(b, e)}
-            />
+              draggable
+              onDragStart={() => { dragId.current = b.id; }}
+              onDragEnd={() => { dragId.current = null; }}
+              onDragOver={(e) => { if (dragId.current) e.preventDefault(); }}
+              onDrop={(e) => {
+                if (dragId.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragId.current !== b.id) props.onReorder(dragId.current, b.id);
+                  dragId.current = null;
+                }
+              }}
+            >
+              <GalleryCard
+                block={b}
+                selected={selected.has(b.id)}
+                selectMode={selectMode}
+                onClick={() => (selectMode ? props.onToggle(b.id) : props.onOpenBlock(b))}
+                onToggle={() => props.onToggle(b.id)}
+                onContext={(e) => props.onBlockContext(b, e)}
+              />
+            </div>
           ))}
         </div>
       )}
