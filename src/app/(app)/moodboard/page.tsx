@@ -189,6 +189,38 @@ export default function MoodboardPage() {
     setBoardDialog(null);
   };
 
+  // Smart ingest: images/videos become media blocks, everything else a file block.
+  const ingestFiles = (boardId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const arr = Array.from(files);
+    arr.forEach((file) => {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+        const kind = file.type.startsWith("video/") ? "video" : "image";
+        const reader = new FileReader();
+        reader.onload = () =>
+          createBlockInBoard(boardId, {
+            kind,
+            src: reader.result as string,
+            title: kind === "video" ? file.name : undefined,
+            ratio: kind === "video" ? 0.56 : 1,
+          });
+        reader.readAsDataURL(file);
+      } else {
+        createBlockInBoard(boardId, {
+          kind: "file",
+          fileType: (file.name.split(".").pop() ?? "FILE").toUpperCase(),
+          title: file.name,
+          ratio: 1,
+        });
+      }
+    });
+    toast.success(`Added ${arr.length} ${arr.length === 1 ? "item" : "items"}`);
+  };
+  const addLinkUrl = (boardId: string, url: string) => {
+    createBlockInBoard(boardId, { kind: "link", url, title: url, ratio: 0.8 });
+    toast.success("Link added");
+  };
+
   const submitAddBlock = () => {
     if (!addBlock) return;
     if (addBlock.kind === "note") {
@@ -406,7 +438,8 @@ export default function MoodboardPage() {
           onNewSub={() => setBoardDialog({ mode: "new", value: "", parentId: openBoard.id })}
           onAddLink={() => setAddBlock({ boardId: openBoard.id, kind: "link", value: "", title: "" })}
           onAddNote={() => setAddBlock({ boardId: openBoard.id, kind: "note", value: "", title: "" })}
-          onUpload={() => toast.success("Upload is simulated in this prototype.")}
+          onIngest={(files) => ingestFiles(openBoard.id, files)}
+          onAddLinkUrl={(url) => addLinkUrl(openBoard.id, url)}
         />
       ) : view === "imports" ? (
         <ImportsView
@@ -633,17 +666,69 @@ function BoardDetail(props: {
   onNewSub: () => void;
   onAddLink: () => void;
   onAddNote: () => void;
-  onUpload: () => void;
+  onIngest: (files: FileList | null) => void;
+  onAddLinkUrl: (url: string) => void;
 }) {
-  const { board, boards, bById, selected, selectMode } = props;
+  const { board, boards, bById, selected, selectMode, onIngest, onAddLink, onAddNote, onAddLinkUrl } = props;
   const path = boardPath(boards, board.id);
   const subs = childBoards(boards, board.id);
   const boardBlocks = board.blockIds.map(bById).filter(Boolean) as Block[];
   const selCount = boardBlocks.filter((b) => selected.has(b.id)).length;
   const empty = boardBlocks.length === 0 && subs.length === 0;
 
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const folderRef = React.useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+
+  React.useEffect(() => {
+    folderRef.current?.setAttribute("webkitdirectory", "");
+  }, []);
+
+  // Keyboard shortcuts (u/n/l) + paste-to-add (image or URL).
+  React.useEffect(() => {
+    const typing = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (typing() || e.metaKey || e.ctrlKey) return;
+      if (e.key === "u") { e.preventDefault(); fileRef.current?.click(); }
+      else if (e.key === "n") { e.preventDefault(); onAddNote(); }
+      else if (e.key === "l") { e.preventDefault(); onAddLink(); }
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (typing()) return;
+      const items = e.clipboardData?.items;
+      const files: File[] = [];
+      if (items) for (const it of items) if (it.kind === "file") { const f = it.getAsFile(); if (f) files.push(f); }
+      if (files.length) {
+        const dt = new DataTransfer();
+        files.forEach((f) => dt.items.add(f));
+        onIngest(dt.files);
+        return;
+      }
+      const text = e.clipboardData?.getData("text")?.trim();
+      if (text && /^https?:\/\//i.test(text)) onAddLinkUrl(text);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("paste", onPaste);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("paste", onPaste); };
+  }, [onIngest, onAddNote, onAddLink, onAddLinkUrl]);
+
   return (
-    <div className="space-y-5">
+    <div
+      className="relative space-y-5"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragOver(false); onIngest(e.dataTransfer.files); }}
+    >
+      <input ref={fileRef} type="file" multiple accept="image/*,video/*,application/pdf" hidden onChange={(e) => { onIngest(e.target.files); e.target.value = ""; }} />
+      <input ref={folderRef} type="file" multiple hidden onChange={(e) => { onIngest(e.target.files); e.target.value = ""; }} />
+      {dragOver && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-accent/60 bg-accent-soft/20">
+          <p className="text-sm font-medium text-accent-ink">Drop to add to “{board.name}”</p>
+        </div>
+      )}
       {/* breadcrumb */}
       <div className="flex items-center gap-1 text-sm">
         <button onClick={() => props.onOpenBoard(null)} className="rounded px-1.5 py-0.5 text-ink-faint hover:bg-elevated cursor-pointer">Moodboard</button>
@@ -683,12 +768,22 @@ function BoardDetail(props: {
             <DropdownMenuTrigger asChild>
               <Button size="sm"><Plus className="size-4" /> Add</Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={props.onUpload}><ImagePlus className="size-4" /> Upload images</DropdownMenuItem>
-              <DropdownMenuItem onClick={props.onAddLink}><LinkIcon className="size-4" /> Add link</DropdownMenuItem>
-              <DropdownMenuItem onClick={props.onAddNote}><StickyNote className="size-4" /> Add note</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => fileRef.current?.click()}>
+                <ImagePlus className="size-4" /> Upload files <span className="ml-auto text-[10px] text-ink-faint">U</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => folderRef.current?.click()}>
+                <FolderInput className="size-4" /> Upload folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAddLink}>
+                <LinkIcon className="size-4" /> Add link <span className="ml-auto text-[10px] text-ink-faint">L</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAddNote}>
+                <StickyNote className="size-4" /> Add note <span className="ml-auto text-[10px] text-ink-faint">N</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={props.onNewSub}><FolderPlus className="size-4" /> New sub-folder</DropdownMenuItem>
+              <div className="px-2 py-1.5 text-[11px] text-ink-faint">Tip: drag files in, or paste an image / link.</div>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant={selectMode ? "default" : "secondary"} size="sm" onClick={props.onToggleSelectMode}>

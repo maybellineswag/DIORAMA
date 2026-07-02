@@ -426,8 +426,8 @@ export default function PiecePage() {
           );
         })}
 
-        {/* Moodboard — a section like the other slots */}
-        <section className="rounded-xl border bg-card p-4">
+        {/* Moodboard — a wide section that showcases the references bigger */}
+        <section className="rounded-xl border bg-card p-4 md:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
               Moodboard
@@ -437,35 +437,38 @@ export default function PiecePage() {
           {moodboards.length === 0 ? (
             <Link
               href="/moodboard"
-              className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-xs text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink"
+              className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-8 text-center text-xs text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink"
             >
               <ImageIcon className="size-4" />
               No moodboard linked — browse the moodboard
             </Link>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-4">
               {moodboards.map((b) => {
-                const cover = b.blockIds.map(blockById).find((bl) => bl?.kind === "image");
+                const images = b.blockIds.map(blockById).filter((bl): bl is NonNullable<typeof bl> => !!bl && bl.kind === "image");
                 return (
-                  <Link
-                    key={b.id}
-                    href={`/moodboard?board=${b.id}`}
-                    className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2 transition-colors hover:border-ink-faint/40"
-                  >
-                    <span className="size-11 shrink-0 overflow-hidden rounded-md border bg-surface-2">
-                      {cover?.src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cover.src} alt="" className="size-full object-cover" />
-                      ) : (
-                        <span className="flex size-full items-center justify-center text-ink-faint"><ImageIcon className="size-4" /></span>
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{b.name}</p>
-                      <p className="text-[11px] text-ink-faint">{b.blockIds.length} references</p>
+                  <div key={b.id}>
+                    <Link
+                      href={`/moodboard?board=${b.id}`}
+                      className="group mb-2 flex items-center gap-2 text-sm font-medium hover:text-accent-ink"
+                    >
+                      {b.name}
+                      <span className="text-xs font-normal text-ink-faint">{b.blockIds.length} references</span>
+                      <ArrowRight className="size-3.5 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-6">
+                      {images.slice(0, 6).map((bl) => (
+                        <Link
+                          key={bl.id}
+                          href={`/moodboard?board=${b.id}`}
+                          className="aspect-square overflow-hidden rounded-lg border transition-all hover:border-ink-faint/40 hover:shadow-md"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={bl.src} alt="" className="size-full object-cover" />
+                        </Link>
+                      ))}
                     </div>
-                    <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
-                  </Link>
+                  </div>
                 );
               })}
             </div>
