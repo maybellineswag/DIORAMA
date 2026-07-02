@@ -75,24 +75,14 @@ import {
 } from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
 
-const strHash = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
+const hostOf = (url: string) => {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 };
+const faviconOf = (url: string) => `https://www.google.com/s2/favicons?domain=${hostOf(url)}&sz=128`;
 
-/** Simulated link preview: derive a title + OG-style cover from the URL. */
+/** Link block: derive a title from the URL (favicon + domain shown in the card). */
 function makeLinkBlock(url: string, title?: string) {
-  let host = url;
-  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep raw */ }
-  const t = title?.trim() || host;
-  return {
-    kind: "link" as const,
-    url,
-    title: t,
-    src: MOODBOARD_PHOTOS[strHash(url) % MOODBOARD_PHOTOS.length],
-    ratio: 0.8,
-  };
+  return { kind: "link" as const, url, title: title?.trim() || hostOf(url), ratio: 1 };
 }
 
 function Initials({ name }: { name: string }) {
@@ -307,20 +297,6 @@ export default function MoodboardPage() {
   };
   const selectAll = (ids: string[]) => { setSelectMode(true); setSelected(new Set(ids)); };
 
-  const reorderBlocks = (boardId: string, fromId: string, toId: string) =>
-    setBoards((bs) =>
-      bs.map((b) => {
-        if (b.id !== boardId) return b;
-        const ids = [...b.blockIds];
-        const from = ids.indexOf(fromId);
-        if (from === -1) return b;
-        ids.splice(from, 1);
-        const to = ids.indexOf(toId);
-        ids.splice(to === -1 ? ids.length : to, 0, fromId);
-        return { ...b, blockIds: ids };
-      }),
-    );
-
   // Manual import filing.
   const moveImport = (importId: string, boardId: string) => {
     const im = imports.find((x) => x.id === importId);
@@ -461,7 +437,6 @@ export default function MoodboardPage() {
           onBulkMove={bulkMove}
           onBulkRemove={bulkRemove}
           onSelectAll={selectAll}
-          onReorder={(fromId, toId) => openBoard && reorderBlocks(openBoard.id, fromId, toId)}
           onOpenBoard={setOpenId}
           onOpenBlock={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
           onBlockContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -655,6 +630,21 @@ function GalleryCard({
           <FileText className="size-7" />
           <span className="line-clamp-2 text-center text-[10px]">{block.title}</span>
         </div>
+      ) : block.kind === "link" ? (
+        <div className="flex size-full flex-col">
+          <div className="flex flex-1 items-center justify-center bg-surface-2">
+            {block.url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={faviconOf(block.url)} alt="" draggable={false} className="size-8 rounded" />
+            ) : (
+              <LinkIcon className="size-6 text-ink-faint" />
+            )}
+          </div>
+          <div className="border-t bg-card p-2">
+            <p className="truncate text-[11px] font-medium">{block.title}</p>
+            <p className="truncate text-[10px] text-ink-faint">{block.url ? hostOf(block.url) : "link"}</p>
+          </div>
+        </div>
       ) : (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -664,11 +654,6 @@ function GalleryCard({
               <span className="flex size-9 items-center justify-center rounded-full bg-paper/70 backdrop-blur">
                 <Play className="size-4" />
               </span>
-            </span>
-          )}
-          {block.kind === "link" && (
-            <span className="absolute bottom-1.5 left-1.5 flex size-5 items-center justify-center rounded bg-paper/80 text-ink-soft backdrop-blur">
-              <LinkIcon className="size-3" />
             </span>
           )}
         </>
@@ -691,7 +676,6 @@ function BoardDetail(props: {
   onBulkMove: (targetId: string) => void;
   onBulkRemove: () => void;
   onSelectAll: (ids: string[]) => void;
-  onReorder: (fromId: string, toId: string) => void;
   onOpenBoard: (id: string | null) => void;
   onOpenBlock: (b: Block) => void;
   onBlockContext: (b: Block, e: React.MouseEvent) => void;
@@ -719,7 +703,6 @@ function BoardDetail(props: {
 
   const fileRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
-  const dragId = React.useRef<string | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
 
   React.useEffect(() => {
@@ -828,11 +811,6 @@ function BoardDetail(props: {
               <div className="px-2 py-1.5 text-[11px] text-ink-faint">Tip: drag files in, or paste an image / link.</div>
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectMode && (
-            <Button variant="ghost" size="sm" onClick={() => props.onSelectAll(shownBlocks.map((b) => b.id))}>
-              Select all
-            </Button>
-          )}
           <Button variant={selectMode ? "default" : "secondary"} size="sm" onClick={props.onToggleSelectMode}>
             <Check className="size-4" /> {selectMode ? "Done" : "Select"}
           </Button>
@@ -843,36 +821,51 @@ function BoardDetail(props: {
         </div>
       </div>
 
-      {/* floating selection toolbar — doesn't shift the grid */}
-      {selCount > 0 && (
+      {/* floating selection toolbar — appears whenever Select mode is on */}
+      {selectMode && (
         <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-popover py-2 pl-4 pr-2 shadow-xl">
-          <span className="mr-1.5 text-sm font-medium">{selCount} selected</span>
-          <Button size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}>
-            <Download className="size-4" /> Download
+          <span className="mr-1 text-sm font-medium">{selCount > 0 ? `${selCount} selected` : "Select items"}</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              selCount === shownBlocks.length && shownBlocks.length > 0
+                ? props.onSelectAll([])
+                : props.onSelectAll(shownBlocks.map((b) => b.id))
+            }
+          >
+            {selCount === shownBlocks.length && shownBlocks.length > 0 ? "Deselect all" : "Select all"}
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm"><FolderInput className="size-4" /> Add to</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
-              {boards.filter((b) => b.id !== board.id).map((b) => (
-                <DropdownMenuItem key={b.id} onClick={() => props.onBulkAdd(b.id)}>{b.name}</DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm"><ArrowRightLeft className="size-4" /> Move to</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
-              {boards.filter((b) => b.id !== board.id).map((b) => (
-                <DropdownMenuItem key={b.id} onClick={() => props.onBulkMove(b.id)}>{b.name}</DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="ghost" size="icon-sm" onClick={props.onBulkRemove} title="Remove from folder"><Trash2 className="size-4" /></Button>
+          {selCount > 0 && (
+            <>
+              <Button size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}>
+                <Download className="size-4" /> Download
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm"><FolderInput className="size-4" /> Add to</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  {boards.filter((b) => b.id !== board.id).map((b) => (
+                    <DropdownMenuItem key={b.id} onClick={() => props.onBulkAdd(b.id)}>{b.name}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm"><ArrowRightLeft className="size-4" /> Move to</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  {boards.filter((b) => b.id !== board.id).map((b) => (
+                    <DropdownMenuItem key={b.id} onClick={() => props.onBulkMove(b.id)}>{b.name}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" size="icon-sm" onClick={props.onBulkRemove} title="Remove from folder"><Trash2 className="size-4" /></Button>
+            </>
+          )}
           <button onClick={props.onClearSel} className="px-2 text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer">
-            Clear
+            Done
           </button>
         </div>
       )}
@@ -916,30 +909,15 @@ function BoardDetail(props: {
             </button>
           ))}
           {shownBlocks.map((b) => (
-            <div
+            <GalleryCard
               key={b.id}
-              draggable
-              onDragStart={() => { dragId.current = b.id; }}
-              onDragEnd={() => { dragId.current = null; }}
-              onDragOver={(e) => { if (dragId.current) e.preventDefault(); }}
-              onDrop={(e) => {
-                if (dragId.current) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (dragId.current !== b.id) props.onReorder(dragId.current, b.id);
-                  dragId.current = null;
-                }
-              }}
-            >
-              <GalleryCard
-                block={b}
-                selected={selected.has(b.id)}
-                selectMode={selectMode}
-                onClick={() => (selectMode ? props.onToggle(b.id) : props.onOpenBlock(b))}
-                onToggle={() => props.onToggle(b.id)}
-                onContext={(e) => props.onBlockContext(b, e)}
-              />
-            </div>
+              block={b}
+              selected={selected.has(b.id)}
+              selectMode={selectMode}
+              onClick={() => (selectMode ? props.onToggle(b.id) : props.onOpenBlock(b))}
+              onToggle={() => props.onToggle(b.id)}
+              onContext={(e) => props.onBlockContext(b, e)}
+            />
           ))}
         </div>
       )}
@@ -1162,6 +1140,15 @@ function BlockPreview({ block, boards, onClose, onConnect, onOpenBoard }: { bloc
                 <p className="p-8 text-sm leading-relaxed text-ink-soft">{block.note}</p>
               ) : block.kind === "file" ? (
                 <div className="flex flex-col items-center gap-2 py-16 text-ink-faint"><FileText className="size-9" /><span className="text-sm">{block.title}</span></div>
+              ) : block.kind === "link" ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  {block.url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={faviconOf(block.url)} alt="" className="size-12 rounded-lg" />
+                  )}
+                  <span className="text-sm font-medium">{block.title}</span>
+                  <span className="text-xs text-ink-faint">{block.url ? hostOf(block.url) : ""}</span>
+                </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={block.src} alt="" className="max-h-[70vh] w-full object-contain" />
