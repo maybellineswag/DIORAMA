@@ -96,8 +96,31 @@ function buildSuggestion(prompt: string): Suggestion {
   };
 }
 
-export function CollectionBoard({ onClose }: { onClose?: () => void } = {}) {
-  const [items, setItems] = React.useState<Item[]>(INITIAL);
+/** Auto-arrange a collection into drop columns (Miro-style). */
+function buildLayout(groups: { label: string; productIds: string[] }[]): Item[] {
+  const out: Item[] = [];
+  groups.forEach((g, ci) => {
+    const fx = 40 + ci * 270;
+    const fy = 40;
+    const h = 74 + Math.max(1, g.productIds.length) * 200 + 16;
+    out.push({ id: uid(), type: "group", x: fx, y: fy, w: 230, h, text: g.label });
+    g.productIds.forEach((pid, i) => {
+      out.push({ id: uid(), type: "product", x: fx + 27, y: fy + 60 + i * 200, productId: pid });
+    });
+  });
+  return out;
+}
+
+export function CollectionBoard({
+  onClose,
+  layout,
+}: {
+  onClose?: () => void;
+  layout?: { label: string; productIds: string[] }[];
+} = {}) {
+  const [items, setItems] = React.useState<Item[]>(() =>
+    layout && layout.length ? buildLayout(layout) : INITIAL,
+  );
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
   const [editing, setEditing] = React.useState<string | null>(null);

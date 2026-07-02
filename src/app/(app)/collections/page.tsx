@@ -14,6 +14,7 @@ import {
   Newspaper,
   Share2,
   Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,11 +35,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PRODUCTS, COLLECTIONS } from "@/lib/mock/data";
+import { PRODUCTS, COLLECTIONS, MOODBOARD_PHOTOS } from "@/lib/mock/data";
 import type { Product } from "@/lib/mock/types";
 import { cn } from "@/lib/utils";
 
 const seasonOf = (name: string) => name.split(" — ")[0];
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const releaseOrder = (name: string) => {
+  const m = metaOf(name).release.toLowerCase().match(/([a-z]{3})\s+(\d{4})/);
+  return m ? parseInt(m[2], 10) * 12 + MONTHS.indexOf(m[1]) : Infinity;
+};
 const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 const compact = (n: number) =>
   n >= 1000 ? `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `$${n}`;
@@ -64,6 +70,7 @@ export default function CollectionsPage() {
   const [openName, setOpenName] = React.useState<string | null>(null);
   const [prices, setPrices] = React.useState<Record<string, number>>({});
   const [boardOpen, setBoardOpen] = React.useState(false);
+  const [boardLayout, setBoardLayout] = React.useState<{ label: string; productIds: string[] }[] | null>(null);
   const [newOpen, setNewOpen] = React.useState(false);
   const [newName, setNewName] = React.useState("");
 
@@ -76,6 +83,18 @@ export default function CollectionsPage() {
   const predicted = (items: Product[]) =>
     items.reduce((s, p) => s + retailOf(p) * (p.quantityToOrder || 0), 0);
 
+  const dropGroups = (items: Product[]) =>
+    Array.from(new Set(items.map((p) => p.drop))).map((drop) => ({
+      label: drop,
+      productIds: items.filter((p) => p.drop === drop).map((p) => p.id),
+    }));
+
+  const openBoard = (items?: Product[]) => {
+    setBoardLayout(items && items.length ? dropGroups(items) : null);
+    setBoardOpen(true);
+  };
+
+  const sortedNames = [...names].sort((a, b) => releaseOrder(a) - releaseOrder(b));
   const openCollection = openName ? { name: openName, products: productsOf(openName) } : null;
 
   const createCollection = () => {
@@ -95,7 +114,7 @@ export default function CollectionsPage() {
         description="Plan drops, manage products, pricing & content — and conceptualize on the board."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setBoardOpen(true)}>
+            <Button variant="secondary" size="sm" onClick={() => openBoard()}>
               <FrameIcon className="size-4" /> Concept board
             </Button>
             <Button size="sm" onClick={() => setNewOpen(true)}>
@@ -114,11 +133,11 @@ export default function CollectionsPage() {
           predicted={predicted}
           onPrice={(id, v) => setPrices((p) => ({ ...p, [id]: v }))}
           onBack={() => setOpenName(null)}
-          onOpenBoard={() => setBoardOpen(true)}
+          onOpenBoard={() => openBoard(openCollection.products)}
         />
       ) : (
         <div className="space-y-4">
-          {names.map((name) => {
+          {sortedNames.map((name) => {
             const items = productsOf(name);
             const drops = new Set(items.map((p) => p.drop)).size;
             const meta = metaOf(name);
@@ -193,7 +212,11 @@ export default function CollectionsPage() {
       {/* Concept board — a launched tool, not a view */}
       {boardOpen && (
         <div className="fixed inset-0 z-50 bg-paper">
-          <CollectionBoard onClose={() => setBoardOpen(false)} />
+          <CollectionBoard
+            key={boardLayout ? `c-${openName ?? ""}` : "general"}
+            onClose={() => setBoardOpen(false)}
+            layout={boardLayout ?? undefined}
+          />
         </div>
       )}
 
@@ -250,6 +273,25 @@ function CollectionDetail({
   const avgMargin = products.length
     ? Math.round(products.reduce((s, p) => s + marginPct(p), 0) / products.length)
     : 0;
+  const [content, setContent] = React.useState<string | null>(null);
+
+  // AI insights — real signals from the data.
+  const EARLY = new Set(["Concept", "Techpack In Progress", "Techpack In Review", "Ready for Quote"]);
+  const tips: string[] = [];
+  products.forEach((p) => {
+    const m = marginPct(p);
+    if (m < 45) {
+      const sugg = Math.ceil(p.bulkPrice / 0.4 / 5) * 5;
+      tips.push(`${p.name}'s margin is ${m}% — raise retail toward $${sugg} for ~60%.`);
+    }
+  });
+  if (!released) {
+    products.forEach((p) => {
+      if (EARLY.has(p.status)) tips.push(`${p.name} is still “${p.status}” but the collection targets ${meta.release} — at risk.`);
+    });
+  }
+  if (products.length > 0 && products.length < 3) tips.push("This collection is thin — 3–5 pieces reads as a fuller drop.");
+  const shownTips = tips.slice(0, 4);
 
   const stat = (label: string, value: string, accent?: string) => (
     <div className="rounded-xl border bg-card p-3">
@@ -289,6 +331,24 @@ function CollectionDetail({
           ? stat("Revenue", money(meta.revenue!), "text-good")
           : stat("Projected revenue", money(predicted(products)))}
       </div>
+
+      {/* AI insights */}
+      {products.length > 0 && (
+        <div className="rounded-xl border border-accent/40 bg-accent-soft/20 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+            <Sparkles className="size-4 text-accent-ink" /> Diorama AI · Collection insights
+          </p>
+          {shownTips.length ? (
+            <ul className="space-y-1.5 text-sm text-ink-soft">
+              {shownTips.map((t, i) => (
+                <li key={i} className="flex gap-2"><span className="text-accent-ink">•</span> {t}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-soft">Margins and timeline look healthy — nothing flagged.</p>
+          )}
+        </div>
+      )}
 
       <Tabs defaultValue="products">
         <TabsList>
@@ -378,32 +438,53 @@ function CollectionDetail({
         </TabsContent>
 
         <TabsContent value="content" className="mt-4">
-          <p className="mb-3 text-sm text-ink-soft">
-            A collection is more than garments — keep its campaign, editorial, social, and mockups here too.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {[
-              { icon: Megaphone, title: "Campaign", desc: "Lookbook, hero shots, launch plan", href: "/moodboard" },
-              { icon: Newspaper, title: "Editorial", desc: "Story, copy, press", href: "/moodboard" },
-              { icon: Share2, title: "Social posts", desc: "Grid, reels, teasers", href: "/ad-studio" },
-              { icon: ImageIcon, title: "Product mockups", desc: "Flats & 3D from the Asset Library", href: "/assets" },
-            ].map((c) => (
-              <Link
-                key={c.title}
-                href={c.href}
-                className="group flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
-              >
-                <span className="flex size-10 items-center justify-center rounded-lg bg-surface-hi text-ink-soft">
-                  <c.icon className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{c.title}</p>
-                  <p className="text-xs text-ink-faint">{c.desc}</p>
+          {(() => {
+            const mockCovers = products.filter((p) => p.image).map((p) => p.image!);
+            const TYPES = [
+              { key: "campaign", icon: Megaphone, title: "Campaign", desc: "Lookbook, hero shots, launch plan", seed: MOODBOARD_PHOTOS.slice(0, 6) },
+              { key: "editorial", icon: Newspaper, title: "Editorial", desc: "Story, copy, press", seed: MOODBOARD_PHOTOS.slice(6, 12) },
+              { key: "social", icon: Share2, title: "Social posts", desc: "Grid, reels, teasers", seed: MOODBOARD_PHOTOS.slice(12, 18) },
+              { key: "mockups", icon: ImageIcon, title: "Product mockups", desc: "Flats & 3D of the pieces", seed: (mockCovers.length ? mockCovers : MOODBOARD_PHOTOS).slice(0, 6) },
+            ];
+            const active = TYPES.find((t) => t.key === content);
+            if (active) {
+              return <ContentManager title={active.title} collection={name} seed={active.seed} onBack={() => setContent(null)} />;
+            }
+            return (
+              <>
+                <p className="mb-3 text-sm text-ink-soft">
+                  A collection is more than garments — manage its campaign, editorial, social, and mockups here.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {TYPES.map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => setContent(c.key)}
+                      className="group overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
+                    >
+                      <div className="grid grid-cols-3 gap-px bg-border">
+                        {c.seed.slice(0, 3).map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={src} alt="" className="aspect-[4/3] w-full object-cover" />
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3 p-3">
+                        <span className="flex size-9 items-center justify-center rounded-lg bg-surface-hi text-ink-soft">
+                          <c.icon className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{c.title}</p>
+                          <p className="text-xs text-ink-faint">{c.desc}</p>
+                        </div>
+                        <span className="text-xs text-ink-faint">{c.seed.length}</span>
+                        <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            ))}
-          </div>
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 
@@ -411,6 +492,76 @@ function CollectionDetail({
         <Sparkles className="size-3.5 text-accent-ink" />
         Tip: open the Concept board to storyboard drops, then manage pricing & content here.
       </p>
+    </div>
+  );
+}
+
+// ── Per-type content manager (campaign / editorial / social / mockups) ──
+function ContentManager({
+  title,
+  collection,
+  seed,
+  onBack,
+}: {
+  title: string;
+  collection: string;
+  seed: string[];
+  onBack: () => void;
+}) {
+  const [items, setItems] = React.useState<string[]>(seed);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [drag, setDrag] = React.useState(false);
+
+  const add = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .forEach((f) => {
+        const r = new FileReader();
+        r.onload = () => setItems((xs) => [r.result as string, ...xs]);
+        r.readAsDataURL(f);
+      });
+    toast.success("Added");
+  };
+
+  return (
+    <div
+      onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
+      onDrop={(e) => { setDrag(false); if (e.dataTransfer.files?.length) { e.preventDefault(); add(e.dataTransfer.files); } }}
+      className={cn("relative space-y-4", drag && "rounded-xl ring-2 ring-accent/50")}
+    >
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer">
+          <ArrowLeft className="size-4" /> {title} · {collection}
+        </button>
+        <Button size="sm" onClick={() => fileRef.current?.click()}>
+          <Plus className="size-4" /> Add
+        </Button>
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
+      </div>
+
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-16 text-center text-ink-faint">
+          <ImageIcon className="size-6" />
+          <p className="text-sm">Nothing here yet — drop files or click Add.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {items.map((src, i) => (
+            <div key={i} className="group relative aspect-[4/5] overflow-hidden rounded-lg border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" className="size-full object-cover" />
+              <button
+                onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}
+                className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-paper/80 text-ink-soft opacity-0 backdrop-blur transition-opacity hover:text-danger group-hover:opacity-100 cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
