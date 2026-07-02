@@ -15,10 +15,16 @@ import {
   FileText,
   Clock,
   ArrowRight,
+  Search,
+  Wand2,
+  X,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
+import { ViewSwitcher } from "@/components/app/view-switcher";
 import { Thumb } from "@/components/thumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +91,49 @@ function shipmentTotal(c: Capability) {
   const ship = parseFloat(c.shippingEst.replace(/[^0-9.]/g, "")) || 0;
   const total = (unit + ship) * c.moq;
   return `${cur}${total.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+const num = (s: string) => parseFloat(s.replace(/[^0-9.]/g, "")) || 0;
+const minSampleLead = (m: Manufacturer) =>
+  m.capabilities.length ? Math.min(...m.capabilities.map((c) => c.sampleLeadDays)) : Infinity;
+const fromPrice = (m: Manufacturer) => {
+  const prices = m.capabilities.map((c) => num(c.avgUnitPrice)).filter((n) => n > 0);
+  if (!prices.length) return "—";
+  const cur = m.capabilities.some((c) => c.avgUnitPrice.includes("€")) ? "€" : "$";
+  return `${cur}${Math.min(...prices)}`;
+};
+
+// ── AI finder: "who can make a woven cashmere sweater?" ───────
+const STOP = new Set([
+  "a", "an", "the", "who", "can", "could", "make", "makes", "making", "made", "my", "from", "list",
+  "factory", "factories", "manufacturer", "manufacturers", "need", "want", "someone", "that", "for",
+  "with", "of", "and", "to", "do", "does", "i", "we", "which", "any", "is", "are", "me", "produce", "in",
+]);
+type Match = { m: Manufacturer; score: number; reasons: string[] };
+function aiFind(list: Manufacturer[], query: string): Match[] {
+  const q = query.toLowerCase();
+  const tokens = q.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
+  if (!tokens.length) return [];
+  return list
+    .map((m) => {
+      let score = 0;
+      const reasons = new Set<string>();
+      m.capabilities.forEach((c) => {
+        const p = c.product.toLowerCase();
+        if (q.includes(p)) { score += 4; reasons.add(`makes ${c.product}`); }
+        else {
+          const hits = p.split(/\s+/).filter((w) => tokens.includes(w));
+          if (hits.length) { score += 2 * hits.length; reasons.add(`makes ${c.product}`); }
+        }
+      });
+      m.categories.forEach((cat) => {
+        const hits = cat.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).filter((w) => tokens.includes(w));
+        if (hits.length) { score += 1; reasons.add(cat); }
+      });
+      return { m, score, reasons: [...reasons] };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.m.rating - a.m.rating);
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -537,16 +586,71 @@ function AddDialog({
   );
 }
 
+const SORTS: { id: "rating" | "moq" | "lead" | "name" | "products"; label: string }[] = [
+  { id: "rating", label: "Top rated" },
+  { id: "moq", label: "Lowest MOQ" },
+  { id: "lead", label: "Fastest samples" },
+  { id: "name", label: "Name A–Z" },
+  { id: "products", label: "Most products" },
+];
+
+function ManuTable({ rows, onOpen }: { rows: Manufacturer[]; onOpen: (m: Manufacturer) => void }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border">
+      <table className="w-full text-sm">
+        <thead className="border-b bg-surface-2/40 text-left text-xs text-ink-faint">
+          <tr>
+            <th className="p-3 font-medium">Manufacturer</th>
+            <th className="p-3 font-medium">Status</th>
+            <th className="hidden p-3 font-medium md:table-cell">Products</th>
+            <th className="p-3 font-medium">From MOQ</th>
+            <th className="hidden p-3 font-medium sm:table-cell">Sample lead</th>
+            <th className="hidden p-3 font-medium sm:table-cell">From</th>
+            <th className="p-3 font-medium">Rating</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((m) => (
+            <tr
+              key={m.id}
+              onClick={() => onOpen(m)}
+              className="cursor-pointer border-b transition-colors last:border-0 hover:bg-elevated/50"
+            >
+              <td className="p-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-surface-2">{m.flag}</span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{m.name}</p>
+                    <p className="text-xs text-ink-faint">{m.country}</p>
+                  </div>
+                </div>
+              </td>
+              <td className="p-3"><Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge></td>
+              <td className="hidden max-w-[220px] p-3 text-ink-soft md:table-cell">
+                <span className="line-clamp-1">{m.capabilities.map((c) => c.product).slice(0, 4).join(", ") || "—"}</span>
+              </td>
+              <td className="tabular p-3">{minMoq(m) || "—"}</td>
+              <td className="tabular hidden p-3 sm:table-cell">{sampleLeadRange(m)}</td>
+              <td className="tabular hidden p-3 sm:table-cell">{fromPrice(m)}</td>
+              <td className="p-3"><Stars rating={m.rating} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ManufacturersPage() {
   const [list, setList] = React.useState<Manufacturer[]>(MANUFACTURERS);
   const [selected, setSelected] = React.useState<Manufacturer | null>(null);
   const [open, setOpen] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState("all");
-
-  const filtered = list.filter(
-    (m) => statusFilter === "all" || m.status === statusFilter,
-  );
+  const [search, setSearch] = React.useState("");
+  const [sort, setSort] = React.useState<(typeof SORTS)[number]["id"]>("rating");
+  const [view, setView] = React.useState<"grid" | "table">("grid");
+  const [ai, setAi] = React.useState<Match[] | null>(null);
 
   // Deep link: /manufacturers?m=ID opens that profile.
   React.useEffect(() => {
@@ -559,6 +663,11 @@ export default function ManufacturersPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const openProfile = (m: Manufacturer) => {
+    setSelected(m);
+    setOpen(true);
+  };
 
   const addNote = (id: string, note: string) => {
     const entry: CommLogEntry = {
@@ -573,84 +682,175 @@ export default function ManufacturersPage() {
     toast.success("Note logged");
   };
 
+  const q = search.trim().toLowerCase();
+  const base = list.filter((m) => statusFilter === "all" || m.status === statusFilter);
+  const textFiltered = q
+    ? base.filter((m) =>
+        `${m.name} ${m.country} ${m.categories.join(" ")} ${m.capabilities.map((c) => c.product).join(" ")}`
+          .toLowerCase()
+          .includes(q),
+      )
+    : base;
+  const cmp: Record<typeof sort, (a: Manufacturer, b: Manufacturer) => number> = {
+    rating: (a, b) => b.rating - a.rating,
+    moq: (a, b) => minMoq(a) - minMoq(b),
+    lead: (a, b) => minSampleLead(a) - minSampleLead(b),
+    name: (a, b) => a.name.localeCompare(b.name),
+    products: (a, b) => b.capabilities.length - a.capabilities.length,
+  };
+  const sorted = [...textFiltered].sort(cmp[sort]);
+  const display = ai ? ai.map((r) => r.m) : sorted;
+  const reasonsFor = (id: string) => ai?.find((r) => r.m.id === id)?.reasons ?? [];
+
+  const runAi = () => {
+    if (!search.trim()) {
+      toast.error("Type what you're looking for first — e.g. “cashmere sweater”");
+      return;
+    }
+    setAi(aiFind(base, search));
+  };
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl space-y-5 p-6 lg:p-8">
       <PageHeader
         title="Manufacturer Directory"
         description="Your network of factories, partners, and suppliers."
         actions={
-          <div className="flex items-center gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger size="sm" className="w-auto min-w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {["Active", "Sampling", "Inactive", "Blacklisted"].map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
-              <Plus className="size-4" /> Add manufacturer
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="size-4" /> Add manufacturer
+          </Button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => {
-              setSelected(m);
-              setOpen(true);
-            }}
-            className="group flex flex-col rounded-xl border bg-card p-4 text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-surface-2 text-xl">
-                {m.flag}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{m.name}</p>
-                <p className="text-xs text-ink-faint">{m.country}</p>
-              </div>
-              <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {m.categories.slice(0, 3).map((c) => (
-                <Badge key={c} variant="outline">{c}</Badge>
-              ))}
-            </div>
-
-            <p className="mt-2 text-xs text-ink-faint">
-              Makes {m.capabilities.length} product
-              {m.capabilities.length === 1 ? "" : "s"}
-              {m.capabilities.length > 0 && (
-                <> · {m.capabilities.map((c) => c.product).slice(0, 3).join(", ")}</>
-              )}
-            </p>
-
-            <Separator className="my-3" />
-
-            <div className="flex items-center justify-between text-xs text-ink-soft">
-              <span className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5">
-                  <Factory className="size-3.5 text-ink-faint" />
-                  from {minMoq(m)} MOQ
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock className="size-3.5 text-ink-faint" />
-                  {sampleLeadRange(m)} samples
-                </span>
-              </span>
-              <Stars rating={m.rating} />
-            </div>
-          </button>
-        ))}
+      {/* Toolbar: ask/search · sort · status · view */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint" />
+          <Input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setAi(null); }}
+            onKeyDown={(e) => e.key === "Enter" && runAi()}
+            placeholder="Search or ask — e.g. who can make a woven cashmere sweater"
+            className="h-10 pl-9"
+          />
+        </div>
+        <Button variant="secondary" size="sm" onClick={runAi} className="shrink-0">
+          <Wand2 className="size-4" /> Ask AI
+        </Button>
+        <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+          <SelectTrigger size="sm" className="w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SORTS.map((s) => (<SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger size="sm" className="w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {["Active", "Sampling", "Inactive", "Blacklisted"].map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <ViewSwitcher
+          value={view}
+          onChange={setView}
+          options={[
+            { id: "grid", label: "Grid", icon: LayoutGrid },
+            { id: "table", label: "Table", icon: Rows3 },
+          ]}
+        />
       </div>
+
+      {/* AI verdict */}
+      {ai && (
+        <div className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent-soft/20 p-4">
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
+            <Wand2 className="size-4" />
+          </span>
+          <p className="min-w-0 flex-1 text-sm text-ink-soft">
+            {ai.length ? (
+              <>
+                Found <span className="font-medium text-foreground">{ai.length}</span>{" "}
+                {ai.length === 1 ? "match" : "matches"} for “{search}”. Best fit:{" "}
+                <span className="font-medium text-foreground">{ai[0].m.name}</span> — {ai[0].reasons.slice(0, 2).join(", ")}.
+                <span className="ml-1 text-ink-faint">Ranked below.</span>
+              </>
+            ) : (
+              <>None of your manufacturers match “{search}”. Try broader terms, or add a new factory that does.</>
+            )}
+          </p>
+          <button onClick={() => setAi(null)} className="text-ink-faint transition-colors hover:text-foreground cursor-pointer">
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {display.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
+          <Factory className="size-6" />
+          <p className="text-sm">No manufacturers match.</p>
+        </div>
+      ) : view === "table" ? (
+        <ManuTable rows={display} onOpen={openProfile} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {display.map((m) => {
+            const reasons = reasonsFor(m.id);
+            return (
+              <button
+                key={m.id}
+                onClick={() => openProfile(m)}
+                className="group flex flex-col rounded-xl border bg-card p-4 text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-surface-2 text-xl">
+                    {m.flag}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{m.name}</p>
+                    <p className="text-xs text-ink-faint">{m.country}</p>
+                  </div>
+                  <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
+                </div>
+
+                {reasons.length > 0 ? (
+                  <p className="mt-3 flex items-center gap-1.5 text-xs text-accent-ink">
+                    <Sparkles className="size-3.5" /> {reasons.slice(0, 3).join(" · ")}
+                  </p>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {m.categories.slice(0, 3).map((c) => (
+                      <Badge key={c} variant="outline">{c}</Badge>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-2 text-xs text-ink-faint">
+                  Makes {m.capabilities.length} product{m.capabilities.length === 1 ? "" : "s"}
+                  {m.capabilities.length > 0 && (
+                    <> · {m.capabilities.map((c) => c.product).slice(0, 3).join(", ")}</>
+                  )}
+                </p>
+
+                <Separator className="my-3" />
+
+                <div className="flex items-center justify-between text-xs text-ink-soft">
+                  <span className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5">
+                      <Factory className="size-3.5 text-ink-faint" /> from {minMoq(m)} MOQ
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="size-3.5 text-ink-faint" /> {sampleLeadRange(m)} samples
+                    </span>
+                  </span>
+                  <Stars rating={m.rating} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-lg">
