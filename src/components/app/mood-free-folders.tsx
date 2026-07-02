@@ -58,6 +58,7 @@ export function MoodFreeFolders({
   scatter = false,
   toolbar = false,
   onContext,
+  onNest,
 }: {
   categories: string[];
   countFor: (c: string) => number;
@@ -68,9 +69,13 @@ export function MoodFreeFolders({
   scatter?: boolean;
   toolbar?: boolean;
   onContext?: (c: string, e: React.MouseEvent) => void;
+  /** Drop a folder onto another to nest it (Finder-style). */
+  onNest?: (child: string, parent: string) => void;
 }) {
   const cats = categories.filter((c) => c !== "All");
   const [pos, setPos] = React.useState<Pos>(() => defaultPos(cats, scatter));
+  const [dropTarget, setDropTarget] = React.useState<string | null>(null);
+  const rootRef = React.useRef<HTMLDivElement>(null);
   const drag = React.useRef<{
     cat: string;
     sx: number;
@@ -127,6 +132,21 @@ export function MoodFreeFolders({
     setTimeout(() => setGliding(false), 400);
   };
 
+  // Which folder is the pointer hovering over (for nesting)?
+  const targetUnder = (e: React.PointerEvent, dragged: string): string | null => {
+    if (!onNest) return null;
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    for (const c of cats) {
+      if (c === dragged) continue;
+      const p = pos[c];
+      if (p && px >= p.x && px <= p.x + 128 && py >= p.y && py <= p.y + 130) return c;
+    }
+    return null;
+  };
+
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -134,6 +154,7 @@ export function MoodFreeFolders({
     const dy = e.clientY - d.sy;
     if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
     setPos((p) => ({ ...p, [d.cat]: { x: Math.max(0, d.ix + dx), y: Math.max(0, d.iy + dy) } }));
+    if (d.moved) setDropTarget(targetUnder(e, d.cat));
   };
 
   const onUp = (e: React.PointerEvent) => {
@@ -142,6 +163,12 @@ export function MoodFreeFolders({
     if (!d) return;
     const dx = e.clientX - d.sx;
     const dy = e.clientY - d.sy;
+    const target = d.moved ? targetUnder(e, d.cat) : null;
+    setDropTarget(null);
+    if (target && onNest) {
+      onNest(d.cat, target);
+      return;
+    }
     if (Math.abs(dx) + Math.abs(dy) <= 4) {
       onOpen(d.cat);
     } else {
@@ -170,6 +197,7 @@ export function MoodFreeFolders({
         </div>
       )}
       <div
+        ref={rootRef}
         className="relative min-h-[60vh] touch-none rounded-xl"
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -190,9 +218,10 @@ export function MoodFreeFolders({
             className={cn(
               "group absolute flex w-32 cursor-grab select-none flex-col items-center gap-1.5 rounded-xl p-2 active:cursor-grabbing",
               gliding && "transition-[left,top] duration-300 ease-out",
+              dropTarget === c && "rounded-xl bg-accent-soft/50 ring-2 ring-accent",
             )}
           >
-            <FolderGlyph className="pointer-events-none w-28 transition-transform duration-150 group-active:scale-[0.98]" />
+            <FolderGlyph className={cn("pointer-events-none w-28 transition-transform duration-150 group-active:scale-[0.98]", dropTarget === c && "scale-105")} />
             <div className="flex items-baseline gap-1.5">
               <span className="text-sm font-medium">{c}</span>
               <span className="tabular text-xs text-ink-faint">{countFor(c)}</span>

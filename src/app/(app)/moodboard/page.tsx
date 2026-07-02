@@ -282,12 +282,12 @@ export default function MoodboardPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <PageHeader
         title={
-          <span className="flex items-end gap-2.5 leading-none">
+          <span className="flex items-baseline gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/olivine-logo.svg"
               alt="Olivine"
-              className="h-6 w-auto translate-y-[2px] select-none dark:[filter:invert(0.92)_sepia(0.08)_saturate(0.6)_brightness(1.05)]"
+              className="h-5 w-auto select-none dark:[filter:invert(0.92)_sepia(0.08)_saturate(0.6)_brightness(1.05)]"
               draggable={false}
             />
             <span>Moodboard</span>
@@ -406,6 +406,14 @@ export default function MoodboardPage() {
             onContext={(name, e) => {
               const b = roots.find((x) => x.name === name);
               if (b) openMenu(e, boardMenu(b));
+            }}
+            onNest={(childName, parentName) => {
+              const child = roots.find((x) => x.name === childName);
+              const parent = roots.find((x) => x.name === parentName);
+              if (child && parent && child.id !== parent.id) {
+                setBoards((bs) => bs.map((b) => (b.id === child.id ? { ...b, parentId: parent.id } : b)));
+                toast.success(`Moved “${childName}” into “${parentName}”`);
+              }
             }}
             storageKey="diorama.mood.boards.v1"
             addLabel="New folder"
@@ -660,12 +668,16 @@ function BoardDetail(props: {
         </div>
       </div>
 
-      {/* selection bar */}
+      {/* floating selection toolbar — doesn't shift the grid */}
       {selCount > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-accent/40 bg-accent-soft/20 px-3 py-2 text-sm">
-          <span className="font-medium">{selCount} selected</span>
-          <Button variant="secondary" size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}><Download className="size-4" /> Download</Button>
-          <Button variant="ghost" size="sm" onClick={props.onClearSel}>Clear</Button>
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border bg-popover px-4 py-2 shadow-xl">
+          <span className="text-sm font-medium">{selCount} selected</span>
+          <Button size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}>
+            <Download className="size-4" /> Download
+          </Button>
+          <button onClick={props.onClearSel} className="text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer">
+            Clear
+          </button>
         </div>
       )}
 
@@ -682,10 +694,10 @@ function BoardDetail(props: {
               key={s.id}
               onClick={() => props.onOpenBoard(s.id)}
               onContextMenu={(e) => props.onBoardContext(s, e)}
-              className="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 bg-surface-2/40 p-2 transition-colors hover:bg-elevated/50"
+              className="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 bg-surface-2/40 p-2 transition-colors hover:bg-elevated/50"
             >
-              <FolderGlyph className="w-16 transition-transform duration-150 group-hover:-translate-y-0.5" />
-              <span className="line-clamp-1 max-w-full px-1 text-xs font-medium">{s.name}</span>
+              <FolderGlyph className="w-24 transition-transform duration-150 group-hover:-translate-y-0.5" />
+              <span className="line-clamp-1 max-w-full px-1 text-sm font-medium">{s.name}</span>
               <span className="text-[10px] text-ink-faint">{boardCount(boards, s)} items</span>
             </button>
           ))}
@@ -933,14 +945,15 @@ function BlockPreview({ block, boards, onClose, onConnect, onOpenBoard }: { bloc
               <p className="mt-3 text-xs text-ink-faint">Added {block.addedAt}</p>
               <Separator className="my-4" />
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">In {links.length} folder{links.length === 1 ? "" : "s"}</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid grid-cols-3 gap-2">
                 {links.map((b) => (
                   <button
                     key={b.id}
                     onClick={() => onOpenBoard(b.id)}
-                    className="rounded-full border px-2.5 py-0.5 text-xs transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                    className="group flex flex-col items-center gap-1 rounded-lg p-2 transition-colors hover:bg-elevated cursor-pointer"
                   >
-                    {b.name}
+                    <FolderGlyph className="w-14 transition-transform duration-150 group-hover:-translate-y-0.5" />
+                    <span className="line-clamp-1 max-w-full text-[11px]">{b.name}</span>
                   </button>
                 ))}
               </div>

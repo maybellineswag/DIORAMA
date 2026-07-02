@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Wand2, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { Wand2, ArrowRight, ArrowLeft, Check, ImagePlus } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,30 @@ export function MoodAiSortOnboarding({
 }) {
   const [step, setStep] = React.useState(0);
   const [rules, setRules] = React.useState<Record<string, string>>({});
+  const [examples, setExamples] = React.useState<Record<string, string[]>>({});
+  const uploadRef = React.useRef<HTMLInputElement>(null);
+  const targetBoard = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
       setStep(0);
       setRules(Object.fromEntries(boards.map((b) => [b.id, b.rule ?? ""])));
+      setExamples({});
     }
   }, [open, boards]);
+
+  const addExamples = (files: FileList | null) => {
+    const id = targetBoard.current;
+    if (!files || !id) return;
+    Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .forEach((f) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          setExamples((e) => ({ ...e, [id]: [...(e[id] ?? []), reader.result as string] }));
+        reader.readAsDataURL(f);
+      });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,18 +107,36 @@ export function MoodAiSortOnboarding({
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-ink-soft">What belongs in each folder? Saved and reused every time you sort.</p>
+              <p className="text-sm text-ink-soft">
+                Describe what belongs in each folder, and add a few example references — the sorter
+                learns from both. Saved and reused every time you sort.
+              </p>
               {boards.map((b) => (
-                <div key={b.id} className="space-y-1.5">
+                <div key={b.id} className="space-y-2 rounded-lg border p-3">
                   <label className="text-sm font-medium">{b.name}</label>
                   <Textarea
                     value={rules[b.id] ?? ""}
                     onChange={(e) => setRules((r) => ({ ...r, [b.id]: e.target.value }))}
                     placeholder="e.g. fabric close-ups, knits, weaves, washes…"
-                    className="min-h-[56px] text-sm"
+                    className="min-h-[52px] text-sm"
                   />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(examples[b.id] ?? []).map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" className="size-10 rounded border object-cover" />
+                    ))}
+                    <button
+                      onClick={() => { targetBoard.current = b.id; uploadRef.current?.click(); }}
+                      className="flex size-10 items-center justify-center rounded border border-dashed text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                      title="Add example references"
+                    >
+                      <ImagePlus className="size-4" />
+                    </button>
+                    <span className="text-[11px] text-ink-faint">Example references (optional)</span>
+                  </div>
                 </div>
               ))}
+              <input ref={uploadRef} type="file" accept="image/*" multiple hidden onChange={(e) => { addExamples(e.target.files); e.target.value = ""; }} />
             </div>
           )}
         </div>
