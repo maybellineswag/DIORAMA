@@ -736,8 +736,8 @@ function AiFinderDialog({
               <Wand2 className="size-4" />
             </span>
             <span>
-              <span className="block text-sm font-medium leading-tight">Diorama Sourcing AI</span>
-              <span className="block text-xs font-normal leading-tight text-ink-faint">Ask who in your network can make something</span>
+              <span className="block text-sm font-medium leading-tight">Which manufacturer fits?</span>
+              <span className="block text-xs font-normal leading-tight text-ink-faint">Pick the right factory from your network for a product</span>
             </span>
           </DialogTitle>
           <div className="mt-3 flex gap-2">
@@ -809,7 +809,21 @@ function AiFinderDialog({
   );
 }
 
-// ── Side-by-side compare ─────────────────────────────────────
+// ── Side-by-side compare (visual: highlights who wins each metric) ──
+const minPriceNum = (m: Manufacturer) => {
+  const p = m.capabilities.map((c) => num(c.avgUnitPrice)).filter((n) => n > 0);
+  return p.length ? Math.min(...p) : Infinity;
+};
+const hoursOf = (m: Manufacturer) => (m.responseTime ? num(m.responseTime) : Infinity);
+
+type CmpRow = {
+  label: string;
+  render: (m: Manufacturer) => React.ReactNode;
+  metric?: (m: Manufacturer) => number;
+  dir?: "min" | "max";
+  win?: string;
+};
+
 function CompareDialog({
   open,
   onOpenChange,
@@ -819,35 +833,74 @@ function CompareDialog({
   onOpenChange: (v: boolean) => void;
   items: Manufacturer[];
 }) {
-  const rows: [string, (m: Manufacturer) => React.ReactNode][] = [
-    ["Status", (m) => <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>],
-    ["Location", (m) => (m.city ? `${m.city}, ${m.country}` : m.country)],
-    ["Rating", (m) => <Stars rating={m.rating} />],
-    ["On-time", (m) => (m.onTimePct != null ? `${m.onTimePct}%` : "—")],
-    ["Responds", (m) => m.responseTime ?? "—"],
-    ["Partner since", (m) => m.since ?? "—"],
-    ["Capacity", (m) => m.capacity ?? "—"],
-    ["From MOQ", (m) => String(minMoq(m) || "—")],
-    ["Sample lead", (m) => sampleLeadRange(m)],
-    ["From price", (m) => `${fromPrice(m)}/unit`],
-    ["Payment", (m) => m.paymentTerms],
-    ["Products", (m) => m.capabilities.map((c) => c.product).join(", ") || "—"],
-    ["Specializations", (m) => m.categories.join(", ")],
-    ["Certifications", (m) => m.certifications?.join(", ") || "—"],
+  const rows: CmpRow[] = [
+    { label: "Status", render: (m) => <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge> },
+    { label: "Location", render: (m) => (m.city ? `${m.city}, ${m.country}` : m.country) },
+    { label: "Rating", render: (m) => <Stars rating={m.rating} />, metric: (m) => m.rating, dir: "max", win: "Top rated" },
+    { label: "On-time", render: (m) => (m.onTimePct != null ? `${m.onTimePct}%` : "—"), metric: (m) => m.onTimePct ?? -1, dir: "max", win: "Most reliable" },
+    { label: "Responds", render: (m) => m.responseTime ?? "—", metric: hoursOf, dir: "min", win: "Fastest reply" },
+    { label: "Partner since", render: (m) => m.since ?? "—" },
+    { label: "Capacity", render: (m) => m.capacity ?? "—" },
+    { label: "MOQ", render: (m) => String(minMoq(m) || "—"), metric: (m) => minMoq(m) || Infinity, dir: "min", win: "Lowest MOQ" },
+    { label: "Sample lead", render: (m) => sampleLeadRange(m), metric: minSampleLead, dir: "min", win: "Fastest" },
+    { label: "From price", render: (m) => `${fromPrice(m)}/unit`, metric: minPriceNum, dir: "min", win: "Cheapest" },
+    { label: "Payment", render: (m) => m.paymentTerms },
+    { label: "Products", render: (m) => m.capabilities.map((c) => c.product).join(", ") || "—" },
+    { label: "Specializations", render: (m) => m.categories.join(", ") },
+    { label: "Certifications", render: (m) => m.certifications?.join(", ") || "—" },
   ];
+
+  const bestVal = (r: CmpRow) => {
+    if (!r.metric || items.length < 2) return null;
+    const vals = items.map(r.metric).filter((v) => Number.isFinite(v));
+    if (!vals.length) return null;
+    const best = r.dir === "max" ? Math.max(...vals) : Math.min(...vals);
+    // don't crown a winner if everyone ties
+    return vals.every((v) => v === best) ? null : best;
+  };
+
+  const bestName = (metric: (m: Manufacturer) => number, dir: "min" | "max") => {
+    let best: Manufacturer | null = null;
+    let bv = dir === "max" ? -Infinity : Infinity;
+    items.forEach((m) => {
+      const v = metric(m);
+      if (!Number.isFinite(v)) return;
+      if (dir === "max" ? v > bv : v < bv) { bv = v; best = m; }
+    });
+    return best as Manufacturer | null;
+  };
+  const topRated = bestName((m) => m.rating, "max");
+  const reliable = bestName((m) => m.onTimePct ?? -1, "max");
+  const fastest = bestName(minSampleLead, "min");
+  const cheapest = bestName(minPriceNum, "min");
+  const summary = [
+    topRated && `${topRated.name} is top-rated`,
+    reliable && reliable.onTimePct != null && `${reliable.name} is most reliable (${reliable.onTimePct}%)`,
+    fastest && `${fastest.name} turns samples fastest`,
+    cheapest && `${cheapest.name} is the cheapest per unit`,
+  ].filter(Boolean).join(" · ");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Compare {items.length} manufacturers</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-auto">
+
+        {items.length >= 2 && summary && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-accent/40 bg-accent-soft/20 p-3">
+            <Wand2 className="mt-0.5 size-4 shrink-0 text-accent-ink" />
+            <p className="text-sm text-ink-soft">{summary}.</p>
+          </div>
+        )}
+
+        <div className="max-h-[65vh] overflow-auto">
           <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
                 <th className="sticky left-0 top-0 z-10 bg-card p-2" />
                 {items.map((m) => (
-                  <th key={m.id} className="sticky top-0 z-10 min-w-[140px] bg-card p-2 text-left align-bottom">
+                  <th key={m.id} className="sticky top-0 z-10 min-w-[150px] bg-card p-2 text-left align-bottom">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{m.flag}</span>
                       <span className="truncate text-sm font-medium">{m.name}</span>
@@ -857,14 +910,35 @@ function CompareDialog({
               </tr>
             </thead>
             <tbody>
-              {rows.map(([label, render]) => (
-                <tr key={label}>
-                  <td className="sticky left-0 z-10 whitespace-nowrap border-t bg-card p-2 align-top text-xs text-ink-faint">{label}</td>
-                  {items.map((m) => (
-                    <td key={m.id} className="border-t p-2 align-top text-ink-soft">{render(m)}</td>
-                  ))}
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const best = bestVal(r);
+                return (
+                  <tr key={r.label}>
+                    <td className="sticky left-0 z-10 whitespace-nowrap border-t bg-card p-2 align-top text-xs text-ink-faint">{r.label}</td>
+                    {items.map((m) => {
+                      const isWin = best != null && r.metric?.(m) === best;
+                      return (
+                        <td
+                          key={m.id}
+                          className={cn(
+                            "border-t p-2 align-top text-ink-soft",
+                            isWin && "bg-accent-soft/30",
+                          )}
+                        >
+                          <span className={cn("inline-flex items-center gap-1.5", isWin && "font-medium text-foreground")}>
+                            {r.render(m)}
+                            {isWin && r.win && (
+                              <span className="rounded bg-accent px-1 py-px text-[9px] font-medium uppercase tracking-wide text-accent-foreground">
+                                {r.win}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -966,9 +1040,9 @@ export default function ManufacturersPage() {
           <Wand2 className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">Ask Diorama AI to source a maker</p>
+          <p className="text-sm font-medium">Ask Diorama AI which of your manufacturers fits</p>
           <p className="truncate text-xs text-ink-faint">
-            “who can make a woven cashmere sweater?” · “denim under 200 MOQ” · “who does embroidery?”
+            “who can make a woven cashmere sweater?” · “best for denim under 200 MOQ” · “who does embroidery?”
           </p>
         </div>
         <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
@@ -1082,7 +1156,7 @@ export default function ManufacturersPage() {
                 <div className="flex items-center justify-between text-xs text-ink-soft">
                   <span className="flex items-center gap-3">
                     <span className="flex items-center gap-1.5">
-                      <Factory className="size-3.5 text-ink-faint" /> from {minMoq(m)} MOQ
+                      <Factory className="size-3.5 text-ink-faint" /> {minMoq(m)} MOQ
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock className="size-3.5 text-ink-faint" /> {fromPrice(m)}/unit
