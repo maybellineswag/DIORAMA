@@ -1040,7 +1040,7 @@ export default function ManufacturersPage() {
           <Wand2 className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">Ask Diorama AI which of your manufacturers fits</p>
+          <p className="text-sm font-medium">Ask Diorama AI which manufacturer fits your next product</p>
           <p className="truncate text-xs text-ink-faint">
             “who can make a woven cashmere sweater?” · “best for denim under 200 MOQ” · “who does embroidery?”
           </p>

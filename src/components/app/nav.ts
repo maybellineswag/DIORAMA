@@ -26,7 +26,7 @@ export const NAV: NavItem[] = [
   { label: "Asset Library", href: "/assets", icon: Library, hint: "Files & guides" },
   { label: "Moodboard", href: "/moodboard", icon: Images, hint: "References & AI sort" },
   { label: "Manufacturers", href: "/manufacturers", icon: Factory, hint: "Factory directory" },
-  { label: "Collection Planning", href: "/collections", icon: Frame, hint: "Canvas board" },
+  { label: "Collections", href: "/collections", icon: Frame, hint: "Plan drops, pricing & board" },
   { label: "Tasks", href: "/tasks", icon: ListChecks, hint: "Team to-dos" },
   { label: "Calendar", href: "/calendar", icon: CalendarDays, hint: "Everything time-sensitive" },
   { label: "Store", href: "/shopify", icon: Store, hint: "Shopify performance" },
