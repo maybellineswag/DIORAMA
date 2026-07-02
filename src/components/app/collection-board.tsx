@@ -96,7 +96,7 @@ function buildSuggestion(prompt: string): Suggestion {
   };
 }
 
-export function CollectionBoard() {
+export function CollectionBoard({ onClose }: { onClose?: () => void } = {}) {
   const [items, setItems] = React.useState<Item[]>(INITIAL);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
@@ -311,6 +311,11 @@ export function CollectionBoard() {
 
         {/* Top-right controls */}
         <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+          {onClose && (
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              <X className="size-4" /> Done
+            </Button>
+          )}
           <Button
             size="icon-sm"
             variant="secondary"
