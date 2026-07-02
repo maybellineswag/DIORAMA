@@ -17,9 +17,11 @@ import {
   ArrowRight,
   Search,
   Wand2,
-  X,
   LayoutGrid,
   Rows3,
+  BadgeCheck,
+  Check,
+  GitCompare,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -203,6 +205,31 @@ function ProfileSheet({
           </div>
         </div>
       </SheetHeader>
+
+      {/* Overview — reliability + relationship at a glance */}
+      <div className="border-b px-5 pb-4">
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            ["On-time", mf.onTimePct != null ? `${mf.onTimePct}%` : "—"],
+            ["Responds", mf.responseTime ?? "—"],
+            ["Partner since", mf.since ?? "—"],
+            ["Capacity", mf.capacity ?? "—"],
+          ].map(([k, v]) => (
+            <div key={k} className="rounded-lg border bg-surface-2/40 p-2.5 text-center">
+              <p className="truncate text-sm font-medium">{v}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-ink-faint">{k}</p>
+            </div>
+          ))}
+        </div>
+        {mf.certifications && mf.certifications.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-ink-faint">Certifications</span>
+            {mf.certifications.map((c) => (
+              <Badge key={c} variant="outline"><BadgeCheck className="size-3 text-good" /> {c}</Badge>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Tabs defaultValue="capabilities" className="flex min-h-0 flex-1 flex-col gap-0">
         <div className="px-5 pt-4">
@@ -594,12 +621,23 @@ const SORTS: { id: "rating" | "moq" | "lead" | "name" | "products"; label: strin
   { id: "products", label: "Most products" },
 ];
 
-function ManuTable({ rows, onOpen }: { rows: Manufacturer[]; onOpen: (m: Manufacturer) => void }) {
+function ManuTable({
+  rows,
+  onOpen,
+  selectMode = false,
+  selectedIds,
+}: {
+  rows: Manufacturer[];
+  onOpen: (m: Manufacturer) => void;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border">
       <table className="w-full text-sm">
         <thead className="border-b bg-surface-2/40 text-left text-xs text-ink-faint">
           <tr>
+            {selectMode && <th className="w-8 p-3" />}
             <th className="p-3 font-medium">Manufacturer</th>
             <th className="p-3 font-medium">Status</th>
             <th className="hidden p-3 font-medium md:table-cell">Products</th>
@@ -610,12 +648,27 @@ function ManuTable({ rows, onOpen }: { rows: Manufacturer[]; onOpen: (m: Manufac
           </tr>
         </thead>
         <tbody>
-          {rows.map((m) => (
+          {rows.map((m) => {
+            const sel = selectedIds?.has(m.id);
+            return (
             <tr
               key={m.id}
               onClick={() => onOpen(m)}
-              className="cursor-pointer border-b transition-colors last:border-0 hover:bg-elevated/50"
+              className={cn(
+                "cursor-pointer border-b transition-colors last:border-0 hover:bg-elevated/50",
+                sel && "bg-accent-soft/20",
+              )}
             >
+              {selectMode && (
+                <td className="p-3">
+                  <span className={cn(
+                    "flex size-5 items-center justify-center rounded-full border",
+                    sel ? "border-accent bg-accent text-accent-foreground" : "border-border text-transparent",
+                  )}>
+                    <Check className="size-3" />
+                  </span>
+                </td>
+              )}
               <td className="p-3">
                 <div className="flex items-center gap-2.5">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-surface-2">{m.flag}</span>
@@ -634,10 +687,189 @@ function ManuTable({ rows, onOpen }: { rows: Manufacturer[]; onOpen: (m: Manufac
               <td className="tabular hidden p-3 sm:table-cell">{fromPrice(m)}</td>
               <td className="p-3"><Stars rating={m.rating} /></td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
+  );
+}
+
+// ── AI sourcing assistant (a distinct, focused tool) ─────────
+const AI_EXAMPLES = [
+  "woven cashmere sweater",
+  "denim jacket under 200 MOQ",
+  "who does embroidery",
+  "fast samples for a hoodie",
+];
+function AiFinderDialog({
+  open,
+  onOpenChange,
+  list,
+  onOpenProfile,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  list: Manufacturer[];
+  onOpenProfile: (m: Manufacturer) => void;
+}) {
+  const [q, setQ] = React.useState("");
+  const [results, setResults] = React.useState<Match[] | null>(null);
+
+  React.useEffect(() => {
+    if (!open) { setQ(""); setResults(null); }
+  }, [open]);
+
+  const run = (query?: string) => {
+    const s = (query ?? q).trim();
+    if (!s) return;
+    setQ(s);
+    setResults(aiFind(list, s));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl overflow-hidden p-0">
+        <div className="border-b bg-gradient-to-r from-accent-soft/50 to-transparent p-5">
+          <DialogTitle className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Wand2 className="size-4" />
+            </span>
+            <span>
+              <span className="block text-sm font-medium leading-tight">Diorama Sourcing AI</span>
+              <span className="block text-xs font-normal leading-tight text-ink-faint">Ask who in your network can make something</span>
+            </span>
+          </DialogTitle>
+          <div className="mt-3 flex gap-2">
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+              placeholder="e.g. who can make a woven cashmere sweater"
+              autoFocus
+            />
+            <Button onClick={() => run()} className="shrink-0"><Wand2 className="size-4" /> Ask</Button>
+          </div>
+          {results === null && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {AI_EXAMPLES.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => run(e)}
+                  className="rounded-full border bg-card px-2.5 py-1 text-xs text-ink-soft transition-colors hover:border-accent/50 hover:text-accent-ink cursor-pointer"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="max-h-[55vh] overflow-y-auto p-5">
+          {results === null ? (
+            <p className="py-10 text-center text-sm text-ink-faint">Ask a question to search your factories.</p>
+          ) : results.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center text-ink-faint">
+              <Factory className="size-6" />
+              <p className="text-sm">None of your manufacturers match “{q}”.</p>
+              <p className="text-xs">Try broader terms, or add a factory that does.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-ink-soft">
+                <span className="font-medium text-foreground">{results.length}</span>{" "}
+                {results.length === 1 ? "match" : "matches"} — ranked by fit.
+              </p>
+              <div className="space-y-2">
+                {results.map((r) => (
+                  <button
+                    key={r.m.id}
+                    onClick={() => { onOpenProfile(r.m); onOpenChange(false); }}
+                    className="group flex w-full items-center gap-3 rounded-lg border bg-surface-2/40 p-3 text-left transition-colors hover:border-ink-faint/40 hover:bg-surface-hi cursor-pointer"
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-surface-2 text-lg">{r.m.flag}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{r.m.name} <span className="text-xs font-normal text-ink-faint">{r.m.country}</span></p>
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-accent-ink">
+                        <Sparkles className="size-3 shrink-0" /> {r.reasons.slice(0, 3).join(" · ")}
+                      </p>
+                    </div>
+                    <div className="hidden shrink-0 text-right text-xs text-ink-faint sm:block">
+                      from {minMoq(r.m)} MOQ · {sampleLeadRange(r.m)}
+                    </div>
+                    <ArrowRight className="size-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Side-by-side compare ─────────────────────────────────────
+function CompareDialog({
+  open,
+  onOpenChange,
+  items,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  items: Manufacturer[];
+}) {
+  const rows: [string, (m: Manufacturer) => React.ReactNode][] = [
+    ["Status", (m) => <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>],
+    ["Location", (m) => (m.city ? `${m.city}, ${m.country}` : m.country)],
+    ["Rating", (m) => <Stars rating={m.rating} />],
+    ["On-time", (m) => (m.onTimePct != null ? `${m.onTimePct}%` : "—")],
+    ["Responds", (m) => m.responseTime ?? "—"],
+    ["Partner since", (m) => m.since ?? "—"],
+    ["Capacity", (m) => m.capacity ?? "—"],
+    ["From MOQ", (m) => String(minMoq(m) || "—")],
+    ["Sample lead", (m) => sampleLeadRange(m)],
+    ["From price", (m) => `${fromPrice(m)}/unit`],
+    ["Payment", (m) => m.paymentTerms],
+    ["Products", (m) => m.capabilities.map((c) => c.product).join(", ") || "—"],
+    ["Specializations", (m) => m.categories.join(", ")],
+    ["Certifications", (m) => m.certifications?.join(", ") || "—"],
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Compare {items.length} manufacturers</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-auto">
+          <table className="w-full border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 top-0 z-10 bg-card p-2" />
+                {items.map((m) => (
+                  <th key={m.id} className="sticky top-0 z-10 min-w-[140px] bg-card p-2 text-left align-bottom">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{m.flag}</span>
+                      <span className="truncate text-sm font-medium">{m.name}</span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([label, render]) => (
+                <tr key={label}>
+                  <td className="sticky left-0 z-10 whitespace-nowrap border-t bg-card p-2 align-top text-xs text-ink-faint">{label}</td>
+                  {items.map((m) => (
+                    <td key={m.id} className="border-t p-2 align-top text-ink-soft">{render(m)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -650,7 +882,10 @@ export default function ManufacturersPage() {
   const [search, setSearch] = React.useState("");
   const [sort, setSort] = React.useState<(typeof SORTS)[number]["id"]>("rating");
   const [view, setView] = React.useState<"grid" | "table">("grid");
-  const [ai, setAi] = React.useState<Match[] | null>(null);
+  const [aiOpen, setAiOpen] = React.useState(false);
+  const [selectMode, setSelectMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [compareOpen, setCompareOpen] = React.useState(false);
 
   // Deep link: /manufacturers?m=ID opens that profile.
   React.useEffect(() => {
@@ -698,17 +933,17 @@ export default function ManufacturersPage() {
     name: (a, b) => a.name.localeCompare(b.name),
     products: (a, b) => b.capabilities.length - a.capabilities.length,
   };
-  const sorted = [...textFiltered].sort(cmp[sort]);
-  const display = ai ? ai.map((r) => r.m) : sorted;
-  const reasonsFor = (id: string) => ai?.find((r) => r.m.id === id)?.reasons ?? [];
+  const display = [...textFiltered].sort(cmp[sort]);
 
-  const runAi = () => {
-    if (!search.trim()) {
-      toast.error("Type what you're looking for first — e.g. “cashmere sweater”");
-      return;
-    }
-    setAi(aiFind(base, search));
-  };
+  const toggleSel = (id: string) =>
+    setSelectedIds((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const onCardClick = (m: Manufacturer) => (selectMode ? toggleSel(m.id) : openProfile(m));
+  const compareItems = list.filter((m) => selectedIds.has(m.id));
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-6 lg:p-8">
@@ -722,20 +957,41 @@ export default function ManufacturersPage() {
         }
       />
 
-      {/* Toolbar: ask/search · sort · status · view */}
+      {/* Prominent AI sourcing tool */}
+      <button
+        onClick={() => setAiOpen(true)}
+        className="group flex w-full items-center gap-3 rounded-xl border border-accent/40 bg-gradient-to-r from-accent-soft/50 to-transparent p-4 text-left transition-colors hover:from-accent-soft/80 cursor-pointer"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+          <Wand2 className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Ask Diorama AI to source a maker</p>
+          <p className="truncate text-xs text-ink-faint">
+            “who can make a woven cashmere sweater?” · “denim under 200 MOQ” · “who does embroidery?”
+          </p>
+        </div>
+        <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+      </button>
+
+      {/* Toolbar: search · compare · sort · status · view */}
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint" />
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setAi(null); }}
-            onKeyDown={(e) => e.key === "Enter" && runAi()}
-            placeholder="Search or ask — e.g. who can make a woven cashmere sweater"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search factories, countries, products…"
             className="h-10 pl-9"
           />
         </div>
-        <Button variant="secondary" size="sm" onClick={runAi} className="shrink-0">
-          <Wand2 className="size-4" /> Ask AI
+        <Button
+          variant={selectMode ? "default" : "secondary"}
+          size="sm"
+          onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
+          className="shrink-0"
+        >
+          <GitCompare className="size-4" /> {selectMode ? "Done" : "Compare"}
         </Button>
         <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
           <SelectTrigger size="sm" className="w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
@@ -762,69 +1018,57 @@ export default function ManufacturersPage() {
         />
       </div>
 
-      {/* AI verdict */}
-      {ai && (
-        <div className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent-soft/20 p-4">
-          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
-            <Wand2 className="size-4" />
-          </span>
-          <p className="min-w-0 flex-1 text-sm text-ink-soft">
-            {ai.length ? (
-              <>
-                Found <span className="font-medium text-foreground">{ai.length}</span>{" "}
-                {ai.length === 1 ? "match" : "matches"} for “{search}”. Best fit:{" "}
-                <span className="font-medium text-foreground">{ai[0].m.name}</span> — {ai[0].reasons.slice(0, 2).join(", ")}.
-                <span className="ml-1 text-ink-faint">Ranked below.</span>
-              </>
-            ) : (
-              <>None of your manufacturers match “{search}”. Try broader terms, or add a new factory that does.</>
-            )}
-          </p>
-          <button onClick={() => setAi(null)} className="text-ink-faint transition-colors hover:text-foreground cursor-pointer">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
-
       {display.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-20 text-center text-ink-faint">
           <Factory className="size-6" />
           <p className="text-sm">No manufacturers match.</p>
         </div>
       ) : view === "table" ? (
-        <ManuTable rows={display} onOpen={openProfile} />
+        <ManuTable
+          rows={display}
+          onOpen={onCardClick}
+          selectMode={selectMode}
+          selectedIds={selectedIds}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {display.map((m) => {
-            const reasons = reasonsFor(m.id);
+            const sel = selectedIds.has(m.id);
             return (
               <button
                 key={m.id}
-                onClick={() => openProfile(m)}
-                className="group flex flex-col rounded-xl border bg-card p-4 text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer"
+                onClick={() => onCardClick(m)}
+                className={cn(
+                  "group relative flex flex-col rounded-xl border bg-card p-4 text-left transition-all hover:border-ink-faint/40 hover:shadow-md cursor-pointer",
+                  sel && "border-accent ring-2 ring-accent/40",
+                )}
               >
+                {selectMode && (
+                  <span
+                    className={cn(
+                      "absolute right-3 top-3 z-10 flex size-5 items-center justify-center rounded-full border",
+                      sel ? "border-accent bg-accent text-accent-foreground" : "border-border bg-card text-transparent",
+                    )}
+                  >
+                    <Check className="size-3" />
+                  </span>
+                )}
                 <div className="flex items-start gap-3">
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-surface-2 text-xl">
                     {m.flag}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{m.name}</p>
-                    <p className="text-xs text-ink-faint">{m.country}</p>
+                    <p className="text-xs text-ink-faint">{m.city ? `${m.city}, ${m.country}` : m.country}</p>
                   </div>
-                  <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
+                  {!selectMode && <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>}
                 </div>
 
-                {reasons.length > 0 ? (
-                  <p className="mt-3 flex items-center gap-1.5 text-xs text-accent-ink">
-                    <Sparkles className="size-3.5" /> {reasons.slice(0, 3).join(" · ")}
-                  </p>
-                ) : (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {m.categories.slice(0, 3).map((c) => (
-                      <Badge key={c} variant="outline">{c}</Badge>
-                    ))}
-                  </div>
-                )}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {m.categories.slice(0, 3).map((c) => (
+                    <Badge key={c} variant="outline">{c}</Badge>
+                  ))}
+                </div>
 
                 <p className="mt-2 text-xs text-ink-faint">
                   Makes {m.capabilities.length} product{m.capabilities.length === 1 ? "" : "s"}
@@ -841,7 +1085,7 @@ export default function ManufacturersPage() {
                       <Factory className="size-3.5 text-ink-faint" /> from {minMoq(m)} MOQ
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Clock className="size-3.5 text-ink-faint" /> {sampleLeadRange(m)} samples
+                      <Clock className="size-3.5 text-ink-faint" /> {fromPrice(m)}/unit
                     </span>
                   </span>
                   <Stars rating={m.rating} />
@@ -849,6 +1093,26 @@ export default function ManufacturersPage() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Floating compare bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border bg-popover py-2 pl-4 pr-2 shadow-xl">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <Button
+            size="sm"
+            disabled={selectedIds.size < 2}
+            onClick={() => setCompareOpen(true)}
+          >
+            <GitCompare className="size-4" /> Compare
+          </Button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="px-2 text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer"
+          >
+            Clear
+          </button>
         </div>
       )}
 
@@ -863,6 +1127,9 @@ export default function ManufacturersPage() {
         onOpenChange={setAddOpen}
         onCreate={(m) => setList((prev) => [m, ...prev])}
       />
+
+      <AiFinderDialog open={aiOpen} onOpenChange={setAiOpen} list={list} onOpenProfile={openProfile} />
+      <CompareDialog open={compareOpen} onOpenChange={setCompareOpen} items={compareItems} />
     </div>
   );
 }

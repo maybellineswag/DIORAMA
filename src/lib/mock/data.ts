@@ -111,7 +111,19 @@ export const STATUS_TONE: Record<
 };
 
 // ── Manufacturers ────────────────────────────────────────────
-export const MANUFACTURERS: Manufacturer[] = [
+const MANU_META: Record<
+  string,
+  { city: string; since: string; onTimePct: number; responseTime: string; capacity: string; certifications: string[] }
+> = {
+  "mf-hangzhou": { city: "Hangzhou", since: "2022", onTimePct: 94, responseTime: "~3h", capacity: "12k units / mo", certifications: ["BSCI", "OEKO-TEX"] },
+  "mf-porto": { city: "Porto", since: "2023", onTimePct: 98, responseTime: "~5h", capacity: "6k units / mo", certifications: ["GOTS", "OEKO-TEX", "GRS"] },
+  "mf-istanbul": { city: "Istanbul", since: "2024", onTimePct: 90, responseTime: "~8h", capacity: "9k units / mo", certifications: ["OEKO-TEX"] },
+  "mf-jaipur": { city: "Jaipur", since: "2021", onTimePct: 88, responseTime: "~12h", capacity: "4k units / mo", certifications: ["SA8000", "Fair Trade"] },
+  "mf-shenzhen": { city: "Shenzhen", since: "2020", onTimePct: 96, responseTime: "~2h", capacity: "80k pcs / mo", certifications: ["ISO 9001"] },
+  "mf-coimbra": { city: "Coimbra", since: "2022", onTimePct: 85, responseTime: "~10h", capacity: "5k units / mo", certifications: ["OEKO-TEX"] },
+};
+
+const RAW_MANUFACTURERS: Manufacturer[] = [
   {
     id: "mf-hangzhou",
     name: "Hangzhou Silk Road Mfg.",
@@ -272,6 +284,11 @@ export const MANUFACTURERS: Manufacturer[] = [
     files: [],
   },
 ];
+
+export const MANUFACTURERS: Manufacturer[] = RAW_MANUFACTURERS.map((m) => ({
+  ...m,
+  ...(MANU_META[m.id] ?? {}),
+}));
 
 export function manufacturer(id: string | null): Manufacturer | undefined {
   return MANUFACTURERS.find((m) => m.id === id);

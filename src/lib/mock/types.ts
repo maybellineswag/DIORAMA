@@ -159,6 +159,13 @@ export interface Manufacturer {
   seed: string;
   commLog: CommLogEntry[];
   files: FileRef[];
+  /** Relationship + reliability depth (optional). */
+  city?: string;
+  since?: string;
+  onTimePct?: number;
+  responseTime?: string;
+  capacity?: string;
+  certifications?: string[];
 }
 
 export type AssetCategory =
