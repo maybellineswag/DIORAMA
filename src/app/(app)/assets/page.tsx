@@ -22,7 +22,7 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ViewSwitcher } from "@/components/app/view-switcher";
-import { MoodFreeFolders } from "@/components/app/mood-free-folders";
+import { MoodFreeFolders, FolderGlyph } from "@/components/app/mood-free-folders";
 import { AssetTile } from "@/components/app/asset-tile";
 import { AssetQuickLook } from "@/components/app/asset-quicklook";
 import { useContextMenu, type CtxItem } from "@/components/app/context-menu";
@@ -130,6 +130,7 @@ export default function AssetsPage() {
   const [cats, setCats] = React.useState<string[]>(() =>
     LIBRARY_CATEGORIES.filter((c) => c !== "All"),
   );
+  const [folderParents, setFolderParents] = React.useState<Record<string, string>>({});
   const [folder, setFolder] = React.useState<string | null>(null);
   const [libQuery, setLibQuery] = React.useState("");
   const [folderDialog, setFolderDialog] = React.useState<
@@ -249,6 +250,14 @@ export default function AssetsPage() {
       const orig = folderDialog.original;
       setCats((cs) => cs.map((c) => (c === orig ? name : c)));
       setFolder((f) => (f === orig ? name : f));
+      // Keep parent links pointing at the renamed folder.
+      setFolderParents((fp) => {
+        const next: Record<string, string> = {};
+        for (const [child, parent] of Object.entries(fp)) {
+          next[child === orig ? name : child] = parent === orig ? name : parent;
+        }
+        return next;
+      });
       toast.success("Folder renamed");
     }
     setFolderDialog(null);
@@ -257,6 +266,15 @@ export default function AssetsPage() {
   const deleteFolder = (name: string) => {
     setCats((cs) => cs.filter((c) => c !== name));
     setFolder((f) => (f === name ? null : f));
+    // Drop its own parent link and orphan any children back to root.
+    setFolderParents((fp) => {
+      const next: Record<string, string> = {};
+      for (const [child, parent] of Object.entries(fp)) {
+        if (child === name || parent === name) continue;
+        next[child] = parent;
+      }
+      return next;
+    });
     toast.success(`Moved “${name}” to Trash`);
   };
 
@@ -296,6 +314,14 @@ export default function AssetsPage() {
       )
     : [];
   const folderItems = folder ? allAssets.filter((a) => a.category === folder) : [];
+  const rootCats = cats.filter((c) => !folderParents[c]);
+  const childCats = folder ? cats.filter((c) => folderParents[c] === folder) : [];
+
+  const nestFolder = (child: string, parent: string) => {
+    if (child === parent) return;
+    setFolderParents((fp) => ({ ...fp, [child]: parent }));
+    toast.success(`Moved “${child}” into “${parent}”`);
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
@@ -438,15 +464,27 @@ export default function AssetsPage() {
                 <Button variant="ghost" size="sm" onClick={() => setFolder(null)}>
                   <ArrowLeft className="size-4" /> Folders
                 </Button>
-                <span className="text-xs text-ink-faint">{folderItems.length} items</span>
+                <span className="text-xs text-ink-faint">{folderItems.length + childCats.length} items</span>
               </div>
-              {folderItems.length === 0 ? (
+              {folderItems.length === 0 && childCats.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-16 text-center text-ink-faint">
                   <FolderOpen className="size-6" />
                   <p className="text-sm">This folder is empty.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {childCats.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setFolder(c)}
+                      onContextMenu={(e) => openMenu(e, folderMenu(c))}
+                      className="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border bg-card p-2 transition-colors hover:border-ink-faint/40"
+                    >
+                      <FolderGlyph className="w-20 transition-transform duration-150 group-hover:-translate-y-0.5" />
+                      <span className="line-clamp-1 max-w-full px-1 text-sm font-medium">{c}</span>
+                      <span className="text-[10px] text-ink-faint">{countFor(c)} items</span>
+                    </button>
+                  ))}
                   {folderItems.map((a) => (
                     <AssetCard key={a.id} asset={a} onOpen={() => openAsset(a)} onContextMenu={(e) => openMenu(e, assetMenu(a))} />
                   ))}
@@ -464,11 +502,12 @@ export default function AssetsPage() {
               }}
             >
               <MoodFreeFolders
-                categories={cats}
+                categories={rootCats}
                 countFor={countFor}
                 onOpen={(c) => setFolder(c)}
                 onAdd={() => setFolderDialog({ mode: "new", value: "" })}
                 onContext={(c, e) => openMenu(e, folderMenu(c))}
+                onNest={nestFolder}
                 storageKey="diorama.library.folderPositions.v1"
                 addLabel="New folder"
                 scatter

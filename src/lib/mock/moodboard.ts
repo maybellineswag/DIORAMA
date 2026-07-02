@@ -25,6 +25,8 @@ export interface Board {
   contributors: string[];
   visibility: "Private" | "Team" | "Public";
   linkedCollection?: string;
+  /** Cross-link: this board is a reference set for a specific product. */
+  linkedProductId?: string;
   /** Natural-language AI-sort rule for filing imports into this board. */
   rule?: string;
 }
@@ -101,6 +103,7 @@ export const BOARDS: Board[] = [
     contributors: ["Grisha Obolenskiy", "Mara Vidal"],
     visibility: "Team",
     linkedCollection: "AW25 — Reliquary",
+    linkedProductId: "p-reliquary-hoodie",
     rule: "Swatches, dyed fabric, and anything about palette or color.",
   },
   {
@@ -124,6 +127,7 @@ export const BOARDS: Board[] = [
     contributors: ["Grisha Obolenskiy", "Theo Lund"],
     visibility: "Team",
     linkedCollection: "AW25 — Reliquary",
+    linkedProductId: "p-reliquary-hoodie",
     rule: "Full looks, garment shapes, boxy/oversized/utility cuts.",
   },
   {
@@ -168,6 +172,7 @@ export const BOARDS: Board[] = [
     updatedAt: "2026-06-06",
     contributors: ["Grisha Obolenskiy", "Mara Vidal", "Theo Lund"],
     visibility: "Team",
+    linkedProductId: "p-bomber",
     rule: "Runway, editorial, show footage, styled references.",
   },
 ];
@@ -181,6 +186,10 @@ export const childBoards = (boards: Board[], parentId: string) =>
 /** Backlinks: which boards a block is filed in. */
 export const boardsContaining = (boards: Board[], blockId: string) =>
   boards.filter((b) => b.blockIds.includes(blockId));
+
+/** Moodboard folders linked to a product (surfaced in Product Status / Pieces). */
+export const boardsForProduct = (productId: string): Board[] =>
+  BOARDS.filter((b) => b.linkedProductId === productId);
 
 /** Total items = direct blocks + immediate sub-boards. */
 export const boardCount = (boards: Board[], b: Board) =>

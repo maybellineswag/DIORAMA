@@ -30,6 +30,7 @@ import {
   PRODUCT_TYPES,
   ASSETS,
 } from "@/lib/mock/data";
+import { boardsForProduct } from "@/lib/mock/moodboard";
 import { computeCosting, defaultInputs, defaultFreight, manufacturerQuote, landed } from "@/lib/costing";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -1121,6 +1122,29 @@ export function ProductDetail({
                 </Link>
               );
             })()}
+
+            {/* Moodboard references linked to this product */}
+            {boardsForProduct(product.id).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">Moodboard references</p>
+                {boardsForProduct(product.id).map((b) => (
+                  <Link
+                    key={b.id}
+                    href={`/moodboard?board=${b.id}`}
+                    className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-3 transition-colors hover:border-ink-faint/40 hover:bg-surface-hi"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-md bg-surface-hi">
+                      <ImageIcon className="size-4 text-ink-soft" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{b.name}</p>
+                      <p className="text-xs text-ink-faint">{b.blockIds.length} references</p>
+                    </div>
+                    <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                ))}
+              </div>
+            )}
 
             <input
               ref={fileInput}

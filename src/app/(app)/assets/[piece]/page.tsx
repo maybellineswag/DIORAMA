@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Eye,
   FileText,
+  Image as ImageIcon,
   Plus,
   Scissors,
   Shapes,
@@ -45,6 +46,7 @@ import {
   type SlotKey,
 } from "@/lib/mock/library";
 import { getPiece } from "@/lib/mock/pieces-store";
+import { boardsForProduct } from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
 
 type Upload = { id: string; name: string; fileType: string; size: string; dataUrl?: string };
@@ -209,6 +211,7 @@ export default function PiecePage() {
   };
 
   const total = Object.values(slots).reduce((n, ids) => n + ids.length, 0);
+  const moodboards = base.productId ? boardsForProduct(base.productId) : [];
 
   const resolve = (id: string): { name: string; fileType: string; size: string } | undefined =>
     uploads[id] ?? assetById(id);
@@ -274,13 +277,22 @@ export default function PiecePage() {
           </p>
           <p className="mt-1 text-xs text-ink-faint">{total} assets across {SLOTS.length} slots</p>
         </div>
-        {base.productId && (
-          <Button asChild variant="secondary" size="sm">
-            <Link href={`/samples?product=${base.productId}`}>
-              Open in Product Status <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-col items-end gap-1.5">
+          {base.productId && (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/samples?product=${base.productId}`}>
+                Open in Product Status <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          )}
+          {moodboards.length > 0 && (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/moodboard?board=${moodboards[0].id}`}>
+                <ImageIcon className="size-4" /> Moodboard
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Slots grid */}

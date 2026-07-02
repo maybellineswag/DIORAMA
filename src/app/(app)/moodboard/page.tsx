@@ -18,6 +18,7 @@ import {
   Download,
   ChevronRight,
   Trash2,
+  ArrowRightLeft,
   FolderInput,
   ExternalLink,
   Play,
@@ -117,6 +118,12 @@ export default function MoodboardPage() {
   const openBoard = openId ? boards.find((b) => b.id === openId) ?? null : null;
 
   React.useEffect(() => { setSelected(new Set()); setSelectMode(false); }, [openId, view]);
+
+  // Deep link from Product Status / Pieces: /moodboard?board=ID
+  React.useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("board");
+    if (id && BOARDS.some((b) => b.id === id)) setOpenId(id);
+  }, []);
 
   // ── mutations ──
   const addBoard = (name: string, parentId: string | null) => {
@@ -227,6 +234,26 @@ export default function MoodboardPage() {
       createBlockInBoard(it.boardId, { kind: "image", src: it.src, ratio: [0.75, 1, 1.25][Math.floor(Math.random() * 3)] }),
     );
     if (sortingImports) setImports([]);
+  };
+
+  // Bulk actions on the current selection.
+  const clearSel = () => { setSelected(new Set()); setSelectMode(false); };
+  const bulkAdd = (targetId: string) => {
+    selected.forEach((id) => addToBoard(targetId, id));
+    toast.success(`Added ${selected.size} to folder`);
+    clearSel();
+  };
+  const bulkMove = (targetId: string) => {
+    if (!openBoard) return;
+    selected.forEach((id) => { addToBoard(targetId, id); removeFromBoard(openBoard.id, id); });
+    toast.success(`Moved ${selected.size} to folder`);
+    clearSel();
+  };
+  const bulkRemove = () => {
+    if (!openBoard) return;
+    selected.forEach((id) => removeFromBoard(openBoard.id, id));
+    toast.success(`Removed ${selected.size}`);
+    clearSel();
   };
 
   // Manual import filing.
@@ -364,7 +391,10 @@ export default function MoodboardPage() {
           selectMode={selectMode}
           onToggleSelectMode={() => { setSelectMode((m) => !m); setSelected(new Set()); }}
           onToggle={toggleSel}
-          onClearSel={() => { setSelected(new Set()); setSelectMode(false); }}
+          onClearSel={clearSel}
+          onBulkAdd={bulkAdd}
+          onBulkMove={bulkMove}
+          onBulkRemove={bulkRemove}
           onOpenBoard={setOpenId}
           onOpenBlock={(b) => (b.url ? window.open(b.url, "_blank") : setPreview(b))}
           onBlockContext={(b, e) => openMenu(e, blockMenu(b))}
@@ -589,6 +619,9 @@ function BoardDetail(props: {
   onToggleSelectMode: () => void;
   onToggle: (id: string) => void;
   onClearSel: () => void;
+  onBulkAdd: (targetId: string) => void;
+  onBulkMove: (targetId: string) => void;
+  onBulkRemove: () => void;
   onOpenBoard: (id: string | null) => void;
   onOpenBlock: (b: Block) => void;
   onBlockContext: (b: Block, e: React.MouseEvent) => void;
@@ -670,12 +703,33 @@ function BoardDetail(props: {
 
       {/* floating selection toolbar — doesn't shift the grid */}
       {selCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border bg-popover px-4 py-2 shadow-xl">
-          <span className="text-sm font-medium">{selCount} selected</span>
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-popover py-2 pl-4 pr-2 shadow-xl">
+          <span className="mr-1.5 text-sm font-medium">{selCount} selected</span>
           <Button size="sm" onClick={() => toast.success(`Downloading ${selCount} references (simulated)`)}>
             <Download className="size-4" /> Download
           </Button>
-          <button onClick={props.onClearSel} className="text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm"><FolderInput className="size-4" /> Add to</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center">
+              {boards.filter((b) => b.id !== board.id).map((b) => (
+                <DropdownMenuItem key={b.id} onClick={() => props.onBulkAdd(b.id)}>{b.name}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm"><ArrowRightLeft className="size-4" /> Move to</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center">
+              {boards.filter((b) => b.id !== board.id).map((b) => (
+                <DropdownMenuItem key={b.id} onClick={() => props.onBulkMove(b.id)}>{b.name}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="ghost" size="icon-sm" onClick={props.onBulkRemove} title="Remove from folder"><Trash2 className="size-4" /></Button>
+          <button onClick={props.onClearSel} className="px-2 text-sm text-ink-faint transition-colors hover:text-foreground cursor-pointer">
             Clear
           </button>
         </div>
