@@ -46,7 +46,7 @@ import {
   type SlotKey,
 } from "@/lib/mock/library";
 import { getPiece } from "@/lib/mock/pieces-store";
-import { boardsForProduct } from "@/lib/mock/moodboard";
+import { boardsForProduct, blockById } from "@/lib/mock/moodboard";
 import { cn } from "@/lib/utils";
 
 type Upload = { id: string; name: string; fileType: string; size: string; dataUrl?: string };
@@ -277,22 +277,13 @@ export default function PiecePage() {
           </p>
           <p className="mt-1 text-xs text-ink-faint">{total} assets across {SLOTS.length} slots</p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          {base.productId && (
-            <Button asChild variant="secondary" size="sm">
-              <Link href={`/samples?product=${base.productId}`}>
-                Open in Product Status <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          )}
-          {moodboards.length > 0 && (
-            <Button asChild variant="secondary" size="sm">
-              <Link href={`/moodboard?board=${moodboards[0].id}`}>
-                <ImageIcon className="size-4" /> Moodboard
-              </Link>
-            </Button>
-          )}
-        </div>
+        {base.productId && (
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/samples?product=${base.productId}`}>
+              Open in Product Status <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Slots grid */}
@@ -434,6 +425,52 @@ export default function PiecePage() {
             </section>
           );
         })}
+
+        {/* Moodboard — a section like the other slots */}
+        <section className="rounded-xl border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+              Moodboard
+              <span className="ml-1.5 text-ink-faint/60">{moodboards.length}</span>
+            </p>
+          </div>
+          {moodboards.length === 0 ? (
+            <Link
+              href="/moodboard"
+              className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-xs text-ink-faint transition-colors hover:border-accent/50 hover:text-accent-ink"
+            >
+              <ImageIcon className="size-4" />
+              No moodboard linked — browse the moodboard
+            </Link>
+          ) : (
+            <div className="space-y-2">
+              {moodboards.map((b) => {
+                const cover = b.blockIds.map(blockById).find((bl) => bl?.kind === "image");
+                return (
+                  <Link
+                    key={b.id}
+                    href={`/moodboard?board=${b.id}`}
+                    className="group flex items-center gap-3 rounded-lg border bg-surface-2/40 p-2 transition-colors hover:border-ink-faint/40"
+                  >
+                    <span className="size-11 shrink-0 overflow-hidden rounded-md border bg-surface-2">
+                      {cover?.src ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cover.src} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="flex size-full items-center justify-center text-ink-faint"><ImageIcon className="size-4" /></span>
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{b.name}</p>
+                      <p className="text-[11px] text-ink-faint">{b.blockIds.length} references</p>
+                    </div>
+                    <ArrowRight className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
 
       <AddPicker
