@@ -167,7 +167,7 @@ export default function MoodboardPage() {
     );
 
   const createBlockInBoard = (boardId: string, b: Omit<Block, "id" | "addedAt" | "ratio"> & { ratio?: number }) => {
-    const id = `bk-${Date.now().toString(36)}`;
+    const id = `bk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const block: Block = { id, addedAt: new Date().toISOString().slice(0, 10), ratio: b.ratio ?? 1, ...b };
     setBlocks((bl) => [...bl, block]);
     addToBoard(boardId, id);
@@ -192,7 +192,9 @@ export default function MoodboardPage() {
   // Smart ingest: images/videos become media blocks, everything else a file block.
   const ingestFiles = (boardId: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const arr = Array.from(files);
+    // Skip hidden/junk files that come along with folder uploads (.DS_Store etc).
+    const arr = Array.from(files).filter((f) => !f.name.startsWith(".") && f.size > 0);
+    if (arr.length === 0) return;
     arr.forEach((file) => {
       if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         const kind = file.type.startsWith("video/") ? "video" : "image";
